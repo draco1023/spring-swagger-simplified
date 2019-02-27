@@ -1,0 +1,9 @@
+Now see ParameterizedPropertyHandler.handleParameterizedProperty
+add that concept to pass the map typeVariableToActualTypeMap where applicable
+Hint search for instanceof ParameterizedType
+
+
+RefModel model=new RefModel();
+		model.set$ref(mappedTo); should not ahppen with mappedTo as strings
+		
+addGenericModels in 

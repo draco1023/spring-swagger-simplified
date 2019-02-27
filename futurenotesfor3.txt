@@ -1,0 +1,8 @@
+https://stackoverflow.com/questions/46331271/embed-swagger3-swagger-3-ui-inside-a-spring-web-application
+https://github.com/springfox/springfox/issues/1870
+https://github.com/springfox/springfox/pull/2153
+https://github.com/swagger-api/swagger-ui
+https://github.com/webjars/swagger-ui
+
+Can we make swagger ui accept LocaldateTime path parameter somehow- does it work in the original?
+Can we use the DateTimeFormatter with properties?
