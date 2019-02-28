@@ -35,11 +35,23 @@ With regular swagger an expression of this sort
 * List<List<Map<String, List<String>>>>  
 causes this error.  
 ![Error in regular swagger](images/error1.png)
-  
+
 ###### This spring-swagger-simplfied project 
 * does not repeat this error
 * also its representation conforms to below
 [Data Types](https://swagger.io/docs/specification/data-models/data-types/)
+
+##### Regular XML examples
+###### Try GenericsControllerUsingValid.abc1() or /pqr  
+![usual swagger xml](images/badxml1.png "Regular swagger xml")
+###### causes below error
+![usual swagger xml response](images/xmlerror1.png "Regular swagger corresponding response")
+##### Enriched parameter definitions
+![Enriched swagger xml](images/gudxml1.png "Enriched swagger xml")
+###### causes below response
+![Enriched swagger xml response](images/xmlnoerror1.png "Enriched swagger corresponding response")
+  
+
 
 ##### General Note on validations
 * The library only tries to ensure the annotations get used properly in the generated swagger specs. The actual validation is executed by the underlying framework that processes the annotations at runtime. That said there are adequate illustrative examples provided.
