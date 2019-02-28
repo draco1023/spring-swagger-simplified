@@ -41,12 +41,13 @@ causes this error.
 * also its representation conforms to below
 [Data Types](https://swagger.io/docs/specification/data-models/data-types/)
 
-##### Regular XML examples
+##### Regular swagger XML examples
 ###### Try GenericsControllerUsingValid.abc1() or /pqr  
 ![usual swagger xml](images/badxml1.png "Regular swagger xml")
 ###### causes below error
 ![usual swagger xml response](images/xmlerror1.png "Regular swagger corresponding response")
-##### Enriched parameter definitions
+##### Enriched swagger XML examples
+###### Try same GenericsControllerUsingValid.abc1() or /pqr  
 ![Enriched swagger xml](images/gudxml1.png "Enriched swagger xml")
 ###### causes below response
 ![Enriched swagger xml response](images/xmlnoerror1.png "Enriched swagger corresponding response")
