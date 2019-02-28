@@ -2,27 +2,30 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<!-- <parent> <groupId>mycodeconcepts</groupId> <artifactId>swagger-concepts</artifactId> 
-		<version>0.0.1-SNAPSHOT</version> </parent> -->
+	
 	<groupId>org.bitbucket.tek-nik</groupId>
 
 	<version>1.0.1</version>
 	<artifactId>spring-swagger-simplified</artifactId>
+	<description>Enhances spring swagger capabilities</description>
+
+	<!-- must decide which license soon -->
 
 	<properties>
 		<maven.compiler.source>1.8</maven.compiler.source>
 		<maven.compiler.target>1.8</maven.compiler.target>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 
 	<dependencies>
-		
+
 		<dependency>
 			<groupId>javax.validation</groupId>
 			<artifactId>validation-api</artifactId>
 			<version>2.0.1.Final</version>
 			<scope>provided</scope>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>io.springfox</groupId>
 			<artifactId>springfox-swagger2</artifactId>
@@ -35,40 +38,113 @@
 			<version>5.0.9.RELEASE</version>
 			<scope>provided</scope>
 		</dependency>
-		
-		<dependency>
-		    <groupId>org.hibernate</groupId>
-		    <artifactId>hibernate-validator</artifactId>
-		    <version>6.0.13.Final</version>
-		    <scope>provided</scope>
-		</dependency>
-		
-		 <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-             <version>2.0.5.RELEASE</version>
-            <scope>test</scope>
-        </dependency>
 
-		
-		
+		<dependency>
+			<groupId>org.hibernate</groupId>
+			<artifactId>hibernate-validator</artifactId>
+			<version>6.0.13.Final</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<version>2.0.5.RELEASE</version>
+			<scope>test</scope>
+		</dependency>
+
+
+
 	</dependencies>
 	<developers>
-	<developer>
-	<email>raghu121d@gmail.com</email>
-	<name>Raghuraman Ramaswamy</name>
-	<roles><role>lead</role><role>developer</role></roles>
-	</developer>
-	<developer>
-	<email>rachnasharma2003@gmail.com</email>
-	<name>Rachna Sharma</name>
-	<roles><role>developer</role></roles>
-	</developer>
-	<developer>
-	<email>c_b_rai85@yahoo.co.in</email>
-	<name>Chandra Bhanu Kumar</name>
-	<roles><role>developer</role></roles>
-	</developer>
-	
+		<developer>
+			<email>raghu121d@gmail.com</email>
+			<name>Raghuraman Ramaswamy</name>
+			<roles>
+				<role>lead</role>
+				<role>developer</role>
+			</roles>
+		</developer>
+		<developer>
+			<email>rachnasharma2003@gmail.com</email>
+			<name>Rachna Sharma</name>
+			<roles>
+				<role>developer</role>
+			</roles>
+		</developer>
+		<developer>
+			<email>c_b_rai85@yahoo.co.in</email>
+			<name>Chandra Bhanu Kumar</name>
+			<roles>
+				<role>developer</role>
+			</roles>
+		</developer>
+
 	</developers>
+
+	<scm>
+		<connection>scm:git:git@bitbucket.org:tek-nik/spring-swagger-simplified.git</connection>
+		<developerConnection>scm:git:git@bitbucket.org:tek-nik/spring-swagger-simplified.git</developerConnection>
+		<url>https://bitbucket.org/tek-nik/spring-swagger-simplified</url>
+	</scm>
+	<profiles>
+		<profile>
+			<id>fordeploy</id>
+			<distributionManagement>
+				<snapshotRepository>
+					<id>ossrh</id>
+					<url>https://oss.sonatype.org/content/repositories/snapshots</url>
+				</snapshotRepository>
+				<repository>
+					<id>ossrh</id>
+					<url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+				</repository>
+			</distributionManagement>
+
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-source-plugin</artifactId>
+						<version>3.0.1</version>
+						<executions>
+							<execution>
+								<id>attach-sources</id>
+								<goals>
+									<goal>jar-no-fork</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-javadoc-plugin</artifactId>
+						<version>3.0.0</version>
+						<executions>
+							<execution>
+								<id>attach-javadocs</id>
+								<goals>
+									<goal>jar</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-gpg-plugin</artifactId>
+						<version>1.5</version>
+						<executions>
+							<execution>
+								<id>sign-artifacts</id>
+								<phase>verify</phase>
+								<goals>
+									<goal>sign</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 </project>
