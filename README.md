@@ -29,7 +29,19 @@ Following the steps here should help demonstrate that goal.
 
 Quick related note: While the swagger specifications resulting from this enriching library have all the information like the minLength etc for the parameters, only in case of parameters (unlike with the model definitions) the swagger ui needs a little help in rendering the same information. That is taken care of additionally by this library. 
 
-##### General Note 
+##### Better handling of generic collections
+###### Try GenericsControllerUsingValid.getList2() or /pqr16  
+With regular swagger an expression of this sort   
+* List<List<Map<String, List<String>>>>  
+causes this error.  
+![Error in regular swagger](images/error1.png)
+  
+###### This spring-swagger-simplfied project 
+* does not repeat this error
+* also its representation conforms to below
+[Data Types](https://swagger.io/docs/specification/data-models/data-types/)
+
+##### General Note on validations
 * The library only tries to ensure the annotations get used properly in the generated swagger specs. The actual validation is executed by the underlying framework that processes the annotations at runtime. That said there are adequate illustrative examples provided.
 
 ### How do I get set up? ###
