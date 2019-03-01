@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.bitbucket.tek.nik.simplifiedswagger.BasicMappingHolder;
+import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ParameterizedComponentKeySymbols;
 
 import io.swagger.models.Model;
 import io.swagger.models.ModelImpl;
@@ -192,8 +193,8 @@ private void addWildCardModels(Map<String, Model> definitions) {
 		{
 			continue;
 		}
-		key=key.replace('<', '«');
-		key=key.replace('>', '»');
+		key=key.replace('<', ParameterizedComponentKeySymbols.LEFTCHAR);
+		key=key.replace('>', ParameterizedComponentKeySymbols.RIGHTCHAR);
 		wildcardTypesLookup.put(key, wildcardType);
 		String originalKey=key;
 		ModelImpl model= new ModelImpl();
@@ -477,8 +478,8 @@ private void addGenericModels(Map<String, Model> definitions) {
 		{
 			continue;
 		}*/
-		key=key.replace('<', '«');
-		key=key.replace('>', '»');
+		key=key.replace('<', ParameterizedComponentKeySymbols.LEFTCHAR);
+		key=key.replace('>', ParameterizedComponentKeySymbols.RIGHTCHAR);
 		parameterizedTypesLookup.put(key, parameterizedType);
 		String originalKey=key;
 		ModelImpl model= new ModelImpl();

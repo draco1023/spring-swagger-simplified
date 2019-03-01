@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ParameterizedComponentKeySymbols;
+
 import io.swagger.models.Model;
 import io.swagger.models.properties.ArrayProperty;
 import io.swagger.models.properties.MapProperty;
@@ -86,8 +88,8 @@ public class ParameterizedPropertyHandler {
 			//improve handling
 			//what of list arry,map,set
 			String ref = type.toString();
-			ref=ref.replace('<', '«');
-			ref=ref.replace('>', '»');
+			ref=ref.replace('<', ParameterizedComponentKeySymbols.LEFTCHAR);
+			ref=ref.replace('>', ParameterizedComponentKeySymbols.RIGHTCHAR);
 			RefProperty refProperty= new RefProperty();
 			refProperty.set$ref("#/definitions/"+ref);
 			if(chainControl.getDefinitions().get(ref)==null)

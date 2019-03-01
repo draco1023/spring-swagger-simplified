@@ -21,6 +21,7 @@ import java.util.function.Supplier;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ModelOrRefBuilder;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.OuterContainer;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ParameterContainer;
+import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ParameterizedComponentKeySymbols;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ResponseContainer;
 import org.bitbucket.tek.nik.simplifiedswagger.newmodels.NewModelCreator;
 import org.bitbucket.tek.nik.simplifiedswagger.swaggerdecorators.ISwaggerDecorator;
@@ -155,7 +156,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 		Set<String> keySet = definitions.keySet();
 		Set<String> keySetToRemove=new HashSet<>();
 		for (String key : keySet) {
-			if(key.contains("«"))
+			if(key.contains(ParameterizedComponentKeySymbols.LEFT))
 			{
 				keySetToRemove.add(key);
 				
@@ -171,13 +172,13 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 	private void adjustExamples(Map<String, Model> definitions) {
 		Set<String> definitionsKeySet = definitions.keySet();
 		for (String definitionsKey : definitionsKeySet) {
-			if(definitionsKey.contains("«"))
+			if(definitionsKey.contains(ParameterizedComponentKeySymbols.LEFT))
 			{
 				continue;
 			}
 			Class modelClazz=null;
 			Type modelClazzType = getClassDefinition(definitionsKey);
-			if(definitionsKey.contains("«"))
+			if(definitionsKey.contains(ParameterizedComponentKeySymbols.LEFT))
 			{
 				if(modelClazzType instanceof ParameterizedType)
 				{
@@ -389,7 +390,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 			
 			Class modelClazz=null;
 			Type modelClazzType = getClassDefinition(definitionsKey);
-			if(definitionsKey.contains("«"))
+			if(definitionsKey.contains(ParameterizedComponentKeySymbols.LEFT))
 			{
 				if(modelClazzType instanceof ParameterizedType)
 				{
@@ -746,22 +747,9 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 
 	private Type getClassDefinition(String definitionsKey)  {
 		try {
-			//hello.beans.GenericBean«string,int»
-			//hello.beans.GenericBean«string,hello.beans1.Person»
-			//hello.beans.GenericBean«string,hello.beans.GenericBean1«string,hello.beans1.Person»»
-			//hello.beans.GenericBean«string,hello.beans.GenericBean1«string,object»»  note: ? becomes object
-	
-			//hello.beans.GenericBean«string,object» note: this is also GenericBean<String, ? super GenericBean1>
-			//hello.beans.GenericBean«string,hello.beans.AnotherBean» is also GenericBean<String, ? extends AnotherBean>
-			//hello.beans.GenericBean«string,hello.beans.AnotherBean» is of course GenericBean<String, AnotherBean>
-			// must also try Generic1Bean instead of AnotherBean using type parameters
-			//we must support all this and can probably do better
-			//best to read this also
-			//https://docs.oracle.com/javase/tutorial/java/generics/index.html
-			//https://docs.oracle.com/javase/tutorial/extra/generics/index.html
-			//class for name wont work this way for us.
+			
 			Type ret=null;
-			if(definitionsKey.contains("«"))
+			if(definitionsKey.contains(ParameterizedComponentKeySymbols.LEFT))
 			{
 				ret=this.newModelCreator.getParameterizedModelType(definitionsKey);
 			}

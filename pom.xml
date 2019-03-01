@@ -2,7 +2,7 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	
+
 	<groupId>org.bitbucket.tek-nik</groupId>
 
 	<version>1.0.1</version>
@@ -81,15 +81,18 @@
 		</developer>
 
 	</developers>
-
+	<!-- <scm> <connection>scm:git:git@bitbucket.org:tek-nik/spring-swagger-simplified.git</connection> 
+		<developerConnection>scm:git:git@bitbucket.org:tek-nik/spring-swagger-simplified.git</developerConnection> 
+		<url>https://bitbucket.org/tek-nik/spring-swagger-simplified</url> </scm> 
+		OR -->
 	<scm>
-		<connection>scm:git:git@bitbucket.org:tek-nik/spring-swagger-simplified.git</connection>
-		<developerConnection>scm:git:git@bitbucket.org:tek-nik/spring-swagger-simplified.git</developerConnection>
-		<url>https://bitbucket.org/tek-nik/spring-swagger-simplified</url>
+		<connection>scm:git:git://bitbucket.org:tek-nik/spring-swagger-simplified.git</connection>
+		<developerConnection>scm:git:ssh://bitbucket.org:tek-nik/spring-swagger-simplified.git</developerConnection>
+		<url>https://bitbucket.org/tek-nik/spring-swagger-simplified/src</url>
 	</scm>
 	<profiles>
 		<profile>
-			<id>fordeploy</id>
+			<id>release</id>
 			<distributionManagement>
 				<snapshotRepository>
 					<id>ossrh</id>
@@ -142,6 +145,19 @@
 								</goals>
 							</execution>
 						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.sonatype.plugins</groupId>
+						<artifactId>nexus-staging-maven-plugin</artifactId>
+						<version>1.6.7</version>
+						<extensions>true</extensions>
+						<configuration>
+							<serverId>ossrh</serverId>
+							<nexusUrl>https://oss.sonatype.org/</nexusUrl>
+							<!-- Set this to true and the release will automatically proceed and 
+								sync to Central Repository will follow -->
+							<autoReleaseAfterClose>false</autoReleaseAfterClose>
+						</configuration>
 					</plugin>
 				</plugins>
 			</build>

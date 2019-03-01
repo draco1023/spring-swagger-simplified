@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.bitbucket.tek.nik.simplifiedswagger.BasicMappingHolder;
+import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ParameterizedComponentKeySymbols;
 
 import io.swagger.models.properties.ArrayProperty;
 import io.swagger.models.properties.MapProperty;
@@ -77,8 +78,8 @@ public class Chain {
 			else
 			{
 				String ref = parameterizedType.toString();
-				ref=ref.replace('<', '«');
-				ref=ref.replace('>', '»');
+				ref=ref.replace('<', ParameterizedComponentKeySymbols.LEFTCHAR);
+				ref=ref.replace('>', ParameterizedComponentKeySymbols.RIGHTCHAR);
 				RefProperty refProperty= new RefProperty();
 				refProperty.set$ref("#/definitions/"+ref);
 				if(chainControl.getDefinitions().get(ref)==null)
