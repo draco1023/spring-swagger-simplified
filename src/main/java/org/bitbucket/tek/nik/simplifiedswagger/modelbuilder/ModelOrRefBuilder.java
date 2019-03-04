@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.bitbucket.tek.nik.simplifiedswagger.exception.SimplifiedSwaggerException;
 import org.bitbucket.tek.nik.simplifiedswagger.newmodels.NewModelCreator;
 
 public class ModelOrRefBuilder {
@@ -63,11 +64,11 @@ public class ModelOrRefBuilder {
 		
 		if(this.builderCurrentState.getCurrentContainer()==null)
 		{
-			throw new RuntimeException("no more build");
+			throw new SimplifiedSwaggerException("no more build");
 		}
 		if(this.builderCurrentState.getCurrentContainerStack().size() > 0 && this.builderCurrentState.getCurrentContainer()==this.builderCurrentState.getCurrentContainerStack().get(this.builderCurrentState.getCurrentContainerStack().size()-1))
 		{
-			throw new RuntimeException("Check logic. Container is not changing");
+			throw new SimplifiedSwaggerException("Check logic. Container is not changing");
 		}
 		this.builderCurrentState.getCurrentContainerStack().add(this.builderCurrentState.getCurrentContainer());
 		
@@ -126,7 +127,7 @@ public class ModelOrRefBuilder {
 				else
 				{
 					//must detect when this happens
-					throw new RuntimeException("havent handled this");
+					throw new SimplifiedSwaggerException("havent handled this");
 				}
 			}
 			else if(Map.class.isAssignableFrom(clazz))
@@ -166,7 +167,7 @@ public class ModelOrRefBuilder {
 				else
 				{
 					//must detect when this happens
-					throw new RuntimeException("havent handled this");
+					throw new SimplifiedSwaggerException("havent handled this");
 				}
 				
 				
@@ -201,7 +202,7 @@ public class ModelOrRefBuilder {
 		}
 		else
 		{
-			throw new RuntimeException(" got type of "+this.builderCurrentState.getCurrentGenericType().getClass().getName());
+			throw new SimplifiedSwaggerException(" got type of "+this.builderCurrentState.getCurrentGenericType().getClass().getName());
 		}
 		return outerContainer;
 	}

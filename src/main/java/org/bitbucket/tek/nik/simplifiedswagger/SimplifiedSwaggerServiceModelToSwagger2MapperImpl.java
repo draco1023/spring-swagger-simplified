@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
+import org.bitbucket.tek.nik.simplifiedswagger.exception.SimplifiedSwaggerException;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ModelOrRefBuilder;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.OuterContainer;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ParameterContainer;
@@ -495,7 +496,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 		Field field = getDeclaredField(modelClazz, property);
 		if(field==null && getter==null)
 		{
-			throw new RuntimeException("could not find getter or field for "+propertiesKey+" in  "+modelClazz.getName());
+			throw new SimplifiedSwaggerException("could not find getter or field for "+propertiesKey+" in  "+modelClazz.getName());
 		}
 		if(field!=null && getter!=null)
 		{
@@ -759,7 +760,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 			}
 			return ret;
 		} catch (ClassNotFoundException e) {
-			throw new RuntimeException("unable to get class defintion for "+definitionsKey, e);
+			throw new SimplifiedSwaggerException("unable to get class defintion for "+definitionsKey, e);
 		}
 	}
 
@@ -1153,7 +1154,7 @@ private String[] constrollersToIgnore= {"org.springframework.boot.autoconfigure.
 			Object path = method.invoke(matchedRequestMapping, new Object[] {});
 			return  path;
 		} catch (NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-			throw new RuntimeException("could not get path", e);
+			throw new SimplifiedSwaggerException("could not get path", e);
 		}
 		
 	

@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.bitbucket.tek.nik.simplifiedswagger.BasicMappingHolder;
+import org.bitbucket.tek.nik.simplifiedswagger.exception.SimplifiedSwaggerException;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ParameterizedComponentKeySymbols;
 
 import io.swagger.models.properties.ArrayProperty;
@@ -98,7 +99,7 @@ public class Chain {
 			{
 				nextComponentOrValueType=upperBounds[0];
 			}
-			throw new RuntimeException("improve wildcard handling");
+			throw new SimplifiedSwaggerException("improve wildcard handling");
 		}
 		else if(componentOrValueType instanceof Class)
 		{
@@ -151,7 +152,7 @@ public class Chain {
 		}
 		else
 		{
-			throw new RuntimeException("unexpected else "+ componentOrValueType.getClass().getName());
+			throw new SimplifiedSwaggerException("unexpected else "+ componentOrValueType.getClass().getName());
 		}
 		
 		if(property instanceof ArrayProperty)
@@ -166,7 +167,7 @@ public class Chain {
 		}
 		else
 		{
-			throw new RuntimeException("unexpected else");
+			throw new SimplifiedSwaggerException("unexpected else");
 		}
 		if(nextComponentOrValueType!=null)
 		{

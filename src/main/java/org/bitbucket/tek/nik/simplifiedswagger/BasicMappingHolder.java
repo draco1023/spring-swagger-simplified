@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
+import org.bitbucket.tek.nik.simplifiedswagger.exception.SimplifiedSwaggerException;
+
 import io.swagger.models.parameters.SerializableParameter;
 import io.swagger.models.properties.BooleanProperty;
 import io.swagger.models.properties.DateProperty;
@@ -56,7 +58,7 @@ public class BasicMappingHolder {
 		
 		if(resource==null)
 		{
-			throw new RuntimeException("could not load "+fileName);
+			throw new SimplifiedSwaggerException("could not load "+fileName);
 		}
 		Properties propertyTypeMappingProps = new Properties();
 		try(InputStream is = resource.openStream();)
@@ -65,7 +67,7 @@ public class BasicMappingHolder {
 		}
 		
 		catch (IOException e) {
-			throw new RuntimeException("could not load ", e);
+			throw new SimplifiedSwaggerException("could not load ", e);
 		}
 		return propertyTypeMappingProps;
 	}
@@ -122,7 +124,7 @@ public class BasicMappingHolder {
 		String paramType=getMappedByParamType(parameterType);
 		if(paramType==null)
 		{
-			throw new RuntimeException("need a mapping for "+parameterType.getName() +" in "+PARAM_TYPE_MAPPING_PROPERTIES_FILE_NAME);
+			throw new SimplifiedSwaggerException("need a mapping for "+parameterType.getName() +" in "+PARAM_TYPE_MAPPING_PROPERTIES_FILE_NAME);
 		}
 		serializableParameter.setType(paramType);
 		//see https://swagger.io/docs/specification/data-models/data-types/
@@ -201,7 +203,7 @@ public class BasicMappingHolder {
 		else 
 		{
 			
-			throw new RuntimeException("Unknown mapped type of "+mappedType);
+			throw new SimplifiedSwaggerException("Unknown mapped type of "+mappedType);
 		}
 		}
 		return property;

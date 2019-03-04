@@ -1,5 +1,7 @@
 package org.bitbucket.tek.nik.simplifiedswagger.modelbuilder;
 
+import org.bitbucket.tek.nik.simplifiedswagger.exception.SimplifiedSwaggerException;
+
 import io.swagger.models.Model;
 
 public abstract class OuterContainer {
@@ -43,7 +45,7 @@ public abstract class OuterContainer {
 	private void prventDoubleLoading() {
 		if(this.loaded)
 		{
-			throw new RuntimeException("container already loaded");
+			throw new SimplifiedSwaggerException("container already loaded");
 		}
 	}
 	

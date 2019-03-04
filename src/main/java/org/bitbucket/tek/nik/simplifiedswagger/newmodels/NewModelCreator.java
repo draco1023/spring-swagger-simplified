@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.bitbucket.tek.nik.simplifiedswagger.BasicMappingHolder;
+import org.bitbucket.tek.nik.simplifiedswagger.exception.SimplifiedSwaggerException;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ParameterizedComponentKeySymbols;
 
 import io.swagger.models.Model;
@@ -110,7 +111,7 @@ public class NewModelCreator {
 		}
 		else if(genericType instanceof TypeVariable)
 		{
-			throw new RuntimeException("Resolve the typevariables. Dont send typeVariables");
+			throw new SimplifiedSwaggerException("Resolve the typevariables. Dont send typeVariables");
 			
 		}
 		else if(genericType instanceof Class)
@@ -145,7 +146,7 @@ public class NewModelCreator {
 
 		else
 		{
-			throw new RuntimeException("got "+genericType.getClass().getName());
+			throw new SimplifiedSwaggerException("got "+genericType.getClass().getName());
 		}
 		
 	}
@@ -156,19 +157,19 @@ public class NewModelCreator {
 		{
 			if(clazz.isArray()||List.class.isAssignableFrom(clazz)||Set.class.isAssignableFrom(clazz))
 			{
-				throw new RuntimeException("Not expecting arrays/lists/sets here. Use ArrayProperty when building model fields");
+				throw new SimplifiedSwaggerException("Not expecting arrays/lists/sets here. Use ArrayProperty when building model fields");
 			}
 		}
 		
 		if(clazz.isEnum())
 		{
-			throw new RuntimeException("Not expecting enum types here. Use proper property/type when building model fields .offending type is "+clazz.getName());
+			throw new SimplifiedSwaggerException("Not expecting enum types here. Use proper property/type when building model fields .offending type is "+clazz.getName());
 		}
 		
 		
 		if(BasicMappingHolder.INSTANCE.getMappedByType(clazz.getName())!=null)
 		{
-			throw new RuntimeException("Not expecting basic types here. Use proper property/type when building model fields .offending type is "+clazz.getName());
+			throw new SimplifiedSwaggerException("Not expecting basic types here. Use proper property/type when building model fields .offending type is "+clazz.getName());
 		}
 		
 		if(clazz.getName().contains("$"))
@@ -272,7 +273,7 @@ private void addNonGenericModels(Map<String, Model> definitions) {
 					
 					else
 					{
-						throw new RuntimeException("handle "+genericReturnType.getClass().getName()+" method="+propName+", in "+key);
+						throw new SimplifiedSwaggerException("handle "+genericReturnType.getClass().getName()+" method="+propName+", in "+key);
 					}
 					/*else
 					{
@@ -299,7 +300,7 @@ private void addNonGenericModels(Map<String, Model> definitions) {
 					 }
 					else
 					{
-						throw new RuntimeException("handle "+genericReturnType.getClass().getName()+" method="+propName+", in "+key);
+						throw new SimplifiedSwaggerException("handle "+genericReturnType.getClass().getName()+" method="+propName+", in "+key);
 					}
 				}
 			}
@@ -324,7 +325,7 @@ private void addNonGenericModels(Map<String, Model> definitions) {
 				 }
 				else
 				{
-					throw new RuntimeException("handle "+genericType.getClass().getName()+" field="+field.getName()+", in "+key);
+					throw new SimplifiedSwaggerException("handle "+genericType.getClass().getName()+" field="+field.getName()+", in "+key);
 				}
 			}
 		}
@@ -337,7 +338,7 @@ private void addNonGenericModels(Map<String, Model> definitions) {
 			Type type = propertiesMap.get(key2);
 			if(type==null)
 			{
-				throw new RuntimeException("unexpected if for property "+key2+ " in generic model "+key+" was actual of null type");
+				throw new SimplifiedSwaggerException("unexpected if for property "+key2+ " in generic model "+key+" was actual of null type");
 			}
 			if(type instanceof ParameterizedType)
 			{
@@ -394,7 +395,7 @@ private void addNonGenericModels(Map<String, Model> definitions) {
 			}
 			else
 			{
-				throw new RuntimeException("unexpected else for property "+key2+ " in generic model "+key+" was actual of "+type.getClass().getName());
+				throw new SimplifiedSwaggerException("unexpected else for property "+key2+ " in generic model "+key+" was actual of "+type.getClass().getName());
 			}
 			
 			
@@ -540,7 +541,7 @@ private void addGenericModels(Map<String, Model> definitions) {
 						
 						else
 						{
-							throw new RuntimeException("handle "+genericReturnType.getClass().getName()+" method="+propName+", in "+key);
+							throw new SimplifiedSwaggerException("handle "+genericReturnType.getClass().getName()+" method="+propName+", in "+key);
 						}
 						/*else
 						{
@@ -573,7 +574,7 @@ private void addGenericModels(Map<String, Model> definitions) {
 						}
 						else
 						{
-							throw new RuntimeException("handle "+genericReturnType.getClass().getName()+" method="+propName+", in "+key);
+							throw new SimplifiedSwaggerException("handle "+genericReturnType.getClass().getName()+" method="+propName+", in "+key);
 						}
 					}
 				}
@@ -599,7 +600,7 @@ private void addGenericModels(Map<String, Model> definitions) {
 					}
 					else
 					{
-						throw new RuntimeException("handle "+genericType.getClass().getName()+" field="+field.getName()+", in "+key);
+						throw new SimplifiedSwaggerException("handle "+genericType.getClass().getName()+" field="+field.getName()+", in "+key);
 					}
 				}
 			}
@@ -612,7 +613,7 @@ private void addGenericModels(Map<String, Model> definitions) {
 				Type type = propertiesMap.get(key2);
 				if(type==null)
 				{
-					throw new RuntimeException("unexpected if for property "+key2+ " in generic model "+key+" was actual of null type");
+					throw new SimplifiedSwaggerException("unexpected if for property "+key2+ " in generic model "+key+" was actual of null type");
 				}
 				if(type instanceof ParameterizedType)
 				{
@@ -657,7 +658,7 @@ private void addGenericModels(Map<String, Model> definitions) {
 				}
 				else
 				{
-					throw new RuntimeException("unexpected else for property "+key2+ " in generic model "+key+" was actual of "+type.getClass().getName());
+					throw new SimplifiedSwaggerException("unexpected else for property "+key2+ " in generic model "+key+" was actual of "+type.getClass().getName());
 				}
 				
 				
@@ -667,7 +668,7 @@ private void addGenericModels(Map<String, Model> definitions) {
 		}
 		else
 		{
-			throw new RuntimeException("key="+key+" did not map to a Class. check");
+			throw new SimplifiedSwaggerException("key="+key+" did not map to a Class. check");
 		}
 		
 		model.setProperties(modelProperties);
