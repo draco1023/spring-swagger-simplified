@@ -66,7 +66,7 @@
 			<email>raghu121d@gmail.com</email>
 			<name>Raghuraman Ramaswamy</name>
 			<roles>
-				<role>lead</role>
+			
 				<role>developer</role>
 			</roles>
 		</developer>
@@ -77,13 +77,7 @@
 				<role>developer</role>
 			</roles>
 		</developer>
-		<developer>
-			<email>c_b_rai85@yahoo.co.in</email>
-			<name>Chandra Bhanu Kumar</name>
-			<roles>
-				<role>developer</role>
-			</roles>
-		</developer>
+	
 
 	</developers>
 	<!-- <scm> <connection>scm:git:git@bitbucket.org:tek-nik/spring-swagger-simplified.git</connection> 
