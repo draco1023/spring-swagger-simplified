@@ -64,9 +64,9 @@ causes this error.
 * Will be deploying same in maven central and previous step can be avoided after that.
 * clone the repository git clone https://tek-nik@bitbucket.org/tek-nik/simplified-swagger-examples.git
 * Run mvn clean package  in master branch.
-* run java -jar simplified-swagger-demo\target\simplified-swagger-demo-0.1.0.jar
+* run java -jar simplified-swagger-demo/target/simplified-swagger-demo-0.1.0.jar
 * check using http://localhost:8080/api/swagger-ui.html
-* run java -jar regular-swagger-demo\target\regular-swagger-demo-0.1.0.jar
+* run java -jar regular-swagger-demo/target/regular-swagger-demo-0.1.0.jar
 * check using http://localhost:8081/api/swagger-ui.html
 * Compare the two and hope you will find the simplified-swagger-demo useful
 * Note: spring-swagger-simplified Organizes the beans using the spring bean names in the sawgger ui.
