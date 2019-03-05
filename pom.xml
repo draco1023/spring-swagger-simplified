@@ -8,7 +8,8 @@
 	<version>1.0.1</version>
 	<artifactId>spring-swagger-simplified</artifactId>
 	<description>Enhances spring swagger capabilities</description>
-
+	<name>spring-swagger-simplified</name>
+	 <url>https://bitbucket.org/tek-nik/spring-swagger-simplified</url>
 	<licenses>
     <license>
       <name>The Apache Software License, Version 2.0</name>
