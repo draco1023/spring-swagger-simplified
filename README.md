@@ -90,13 +90,7 @@ causes this error.
 
 
 
-### Housekeeping Notes ###
 
-* For Examples branch although there is a parent pom the child modules are not going to inherit much from it. Aim is to ensure each child module is independent. The parent pom project will be used only as a convenience to build all the projects together.
-* spring-swagger-simplified has some dependencies in provided scope. This is just to ensure it compiles. Actual dependencies will have to be provided by the project that uses it -e.g simplified-swagger-demo in the examples branch. 
-* In our ISwaggerDecorator implementations we could do checks for whether an io.swagger.models.properties.Property instance is actually an instance of StringProperty etc and use the attributes therein. But for now deferring this and using vendorExtensions approach. We should try to ensure that the result is same even when using vendorExtensions. 
-* Similarly in our ISwaggerDecorator implementations we could do checks for whether an io.swagger.models.parameters.Parameter
- instance is actually an instance of PathParameter etc and use the attributes therein. But for now deferring this and using vendorExtensions approach. We should try to ensure that the result is same even when using vendorExtensions. 
 
 
  
