@@ -1064,6 +1064,25 @@ private String[] constrollersToIgnore= {"org.springframework.boot.autoconfigure.
 			Tag tag= new Tag();
 			tag.setName(key);
 			tag.setDescription(controllerClass.getName());
+			Set<String> basesSet= new HashSet<>();
+			
+			if(controllerClass.isAnnotationPresent(RequestMapping.class))
+			{
+				RequestMapping controllerRequestMapping = (RequestMapping) controllerClass.getAnnotation(RequestMapping.class);	
+				if(controllerRequestMapping!=null)
+				{
+					String[] bases = controllerRequestMapping.value();
+					for (String base : bases) {
+						basesSet.add(base);
+					}
+					bases=controllerRequestMapping.path();
+					for (String base : bases) {
+						basesSet.add(base);
+					}
+					
+				}
+			}
+			
 			
 			
 			tags.add(tag);
@@ -1087,23 +1106,18 @@ private String[] constrollersToIgnore= {"org.springframework.boot.autoconfigure.
 					if(matchedRequestMapping!=null)
 					{
 						Set<String> pathsSet= new HashSet<>();
+						if(basesSet.size()>0)
+						{
+							for (String base : basesSet) {
+								
+								addPathsToPathSetForABase(matchedRequestMapping, pathsSet, base);
+							}
+						}
+						else
+						{
+							addPathsToPathSetForABase(matchedRequestMapping, pathsSet, "");
+						}
 						
-						String[] valuesInAnnotation=(String[]) getAnnotationAttribute(matchedRequestMapping, "value");
-						for (String string : valuesInAnnotation) {
-							if(!string.startsWith("/"))
-							{
-								string="/"+string;
-							}
-							pathsSet.add(string);
-						}
-						String[] pathsInAnnotation=(String[]) getAnnotationAttribute(matchedRequestMapping, "path");
-						for (String string : pathsInAnnotation) {
-							if(!string.startsWith("/"))
-							{
-								string="/"+string;
-							}
-							pathsSet.add(string);
-						}
 						for (String path : pathsSet) 
 						{
 							List<MethodAndTag> list = pathToMethodListMap.get(path);
@@ -1125,6 +1139,35 @@ private String[] constrollersToIgnore= {"org.springframework.boot.autoconfigure.
 			
 		}
 		return pathToMethodListMap;
+	}
+
+	private void addPathsToPathSetForABase(Annotation matchedRequestMapping, Set<String> pathsSet, String base) {
+		if(base.length()>0 && !base.startsWith("/"))
+		{
+			base="/"+base;
+		}
+		if(base.endsWith("/"))
+		{
+			base=base.substring(0, base.length()-1);
+		}
+		String[] valuesInAnnotation=(String[]) getAnnotationAttribute(matchedRequestMapping, "value");
+		for (String string : valuesInAnnotation) {
+			if(!string.startsWith("/"))
+			{
+				string="/"+string;
+			}
+			string=base+string;
+			pathsSet.add(string);
+		}
+		String[] pathsInAnnotation=(String[]) getAnnotationAttribute(matchedRequestMapping, "path");
+		for (String string : pathsInAnnotation) {
+			if(!string.startsWith("/"))
+			{
+				string="/"+string;
+			}
+			string=base+string;
+			pathsSet.add(string);
+		}
 	}
 
 
