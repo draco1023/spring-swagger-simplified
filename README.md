@@ -57,6 +57,11 @@ causes this error.
 ##### General Note on validations
 * The library only tries to ensure the annotations get used properly in the generated swagger specs. The actual validation is executed by the underlying framework that processes the annotations at runtime. That said there are adequate illustrative examples provided.
 
+### Supported annotations.
+While its fairly easy to make the library understand any constraint validation annotation. Currently out of the box it supports the following: 
+CreditCardNumber, DateTimeFormat, Email, JsonFormat, Max, Min, NotNull, NotBlank, Pattern, Size, Valid, Validated  
+In addition to the above have also demonstrated how easy its to bring into a project any other and even custom annotations.  
+
 ### How do I get set up? ###
 
 * clone the repository https://tek-nik@bitbucket.org/tek-nik/spring-swagger-simplified.git.
