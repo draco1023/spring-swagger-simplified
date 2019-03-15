@@ -87,9 +87,9 @@ In addition to the above have also demonstrated how easy its to bring into a pro
 
 
 
-### TODO Next ###
+### TODO Next (Not necessarily in same order)###
 
-* This has been demonstrated for spring boot and spring 4. Also demonstrate for spring 5. 
+* This has been demonstrated for spring boot and spring 4. Also demonstrate for spring 5 (at least without router functions and handler i.e. when using @RestController).   
 * Maybe provide support for spring rest data jpa.
 * Provide swagger 3 spring fox implementation
 
