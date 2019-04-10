@@ -1213,55 +1213,70 @@ private String[] constrollersToIgnore= {"org.springframework.boot.autoconfigure.
 	
 	private void handleAnnotatedProperty(Property property, Annotation annotation, Class propertyType) 
 	{
-		String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
-		if (context.containsBean(beanName)) 
+		if(!annotation.annotationType().getPackage().getName().equals(SwaggerDecoratorConstants.SWAGGER_ANNOTATION_PACKAGE))
 		{
-			ISwaggerDecorator bean = context.getBean(beanName, ISwaggerDecorator.class);
-			bean.decorateProperty(property, annotation, propertyType);
-		} else {
-			unMappedAnnotations.add(annotation.annotationType());
-
+			String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
+			if (context.containsBean(beanName)) 
+			{
+				ISwaggerDecorator bean = context.getBean(beanName, ISwaggerDecorator.class);
+				bean.decorateProperty(property, annotation, propertyType);
+			} else {
+				unMappedAnnotations.add(annotation.annotationType());
+	
+			}
 		}
 
 	}
 	
 	private void handleAnnotatedParameter(
+	
 			Annotation annotation, Parameter matchedOperationParameter,
 			java.lang.reflect.Parameter methodParameter) {
-		String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
-		if (context.containsBean(beanName)) 
+		if(!annotation.annotationType().getPackage().getName().equals(SwaggerDecoratorConstants.SWAGGER_ANNOTATION_PACKAGE))
 		{
-			ISwaggerDecorator bean = context.getBean(beanName, ISwaggerDecorator.class);
-			bean.decorateParameter(matchedOperationParameter, annotation, methodParameter);
-		} else {
-			unMappedAnnotations.add(annotation.annotationType());
-
+			String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
+			if (context.containsBean(beanName)) 
+			{
+				ISwaggerDecorator bean = context.getBean(beanName, ISwaggerDecorator.class);
+				bean.decorateParameter(matchedOperationParameter, annotation, methodParameter);
+			} else {
+				unMappedAnnotations.add(annotation.annotationType());
+	
+			}
 		}
 	}
 	
 	private void handleAnnotatedMethod(
 			Annotation annotation, Operation operation,
 			Method method) {
-		String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
-		if (context.containsBean(beanName)) 
+		if(!annotation.annotationType().getPackage().getName().equals(SwaggerDecoratorConstants.SWAGGER_ANNOTATION_PACKAGE))
 		{
-			ISwaggerDecorator bean = context.getBean(beanName, ISwaggerDecorator.class);
-			bean.decorateOperation(operation, annotation, method);
-		} else {
-			unMappedAnnotations.add(annotation.annotationType());
+			String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
+			if (context.containsBean(beanName)) 
+			{
+				ISwaggerDecorator bean = context.getBean(beanName, ISwaggerDecorator.class);
+				
+				bean.decorateOperation(operation, annotation, method);
+			} else {
+				unMappedAnnotations.add(annotation.annotationType());
 
+			}
 		}
+		
 	}
 	
 	private void handleAnnotatedModel(Model model, Annotation annotation, Class modelClazz) {
-		String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
-		if (context.containsBean(beanName)) 
+		if(!annotation.annotationType().getPackage().getName().equals(SwaggerDecoratorConstants.SWAGGER_ANNOTATION_PACKAGE))
 		{
-			ISwaggerDecorator bean = context.getBean(beanName, ISwaggerDecorator.class);
-			bean.decorateModel(model, annotation, modelClazz);
-		} else {
-			unMappedAnnotations.add(annotation.annotationType());
-
+			String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
+			if (context.containsBean(beanName)) 
+			{
+				ISwaggerDecorator bean = context.getBean(beanName, ISwaggerDecorator.class);
+				bean.decorateModel(model, annotation, modelClazz);
+			} else {
+				unMappedAnnotations.add(annotation.annotationType());
+	
+			}
 		}
 	}
 
