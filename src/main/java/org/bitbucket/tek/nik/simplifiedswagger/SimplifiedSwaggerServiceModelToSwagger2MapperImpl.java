@@ -138,7 +138,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 			transformDefinitions(definitions);
 			adjustExamples(definitions);
 			
-			addApiAnnotations();
+			
 			
 			if(showUnMappedAnnotations)
 			{
@@ -155,10 +155,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 		
 	}
 	
-	private void addApiAnnotations() {
-		// TODO Auto-generated method stub
-		
-	}
+	
 
 	private void removeGenricModels(Map<String, Model> definitions) {
 		Set<String> keySet = definitions.keySet();
@@ -776,9 +773,13 @@ private List<String> buildList(String... args)
 {
 	
 	List<String> ret= new ArrayList<>();
-	for (String row : args) {
-		ret.add(row);
+	if(args!=null)
+	{
+		for (String row : args) {
+			ret.add(row);
+		}
 	}
+	
 	return ret;
 	
 }
@@ -797,13 +798,21 @@ private List<String> buildList(String... args)
 			op.setOperationId(method.getName()+"-"+methodType);
 			String[] consumes = (String[]) getAnnotationAttribute(matchedRequestMapping, "consumes");
 			String[] produces = (String[]) getAnnotationAttribute(matchedRequestMapping, "produces");
-			op.setConsumes((consumes==null||consumes.length==0)?buildList("application/json"):buildList(consumes));
-			op.setProduces((produces==null||produces.length==0)?buildList("*/*"):buildList(produces));
-			
-			
+			//op.setConsumes((consumes==null||consumes.length==0)?buildList("application/json"):buildList(consumes));
+			//op.setProduces((produces==null||produces.length==0)?buildList("*/*"):buildList(produces));
+			op.setConsumes(buildList(consumes));
+			op.setProduces(buildList(produces));
 			Annotation[] methodAnnotations = method.getDeclaredAnnotations();
 			for (Annotation methodAnnotation : methodAnnotations) {
 				handleAnnotatedMethod(methodAnnotation, op, method);
+			}
+			if(op.getConsumes()==null || op.getConsumes().size()==0)
+			{
+				op.setConsumes(buildList("application/json"));
+			}
+			if(op.getProduces()==null || op.getProduces().size()==0)
+			{
+				op.setProduces(buildList("*/*"));
 			}
 			
 			java.lang.reflect.Parameter[] parameters = method.getParameters();
@@ -1249,19 +1258,19 @@ private String[] constrollersToIgnore= {"org.springframework.boot.autoconfigure.
 	private void handleAnnotatedMethod(
 			Annotation annotation, Operation operation,
 			Method method) {
-		if(!annotation.annotationType().getPackage().getName().equals(SwaggerDecoratorConstants.SWAGGER_ANNOTATION_PACKAGE))
+		
+		//for methods lets handle both swagger and validation annotations togather
+		String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
+		if (context.containsBean(beanName)) 
 		{
-			String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
-			if (context.containsBean(beanName)) 
-			{
-				ISwaggerDecorator bean = context.getBean(beanName, ISwaggerDecorator.class);
-				
-				bean.decorateOperation(operation, annotation, method);
-			} else {
-				unMappedAnnotations.add(annotation.annotationType());
+			ISwaggerDecorator bean = context.getBean(beanName, ISwaggerDecorator.class);
+			
+			bean.decorateOperation(operation, annotation, method);
+		} else {
+			unMappedAnnotations.add(annotation.annotationType());
 
-			}
 		}
+		
 		
 	}
 	
