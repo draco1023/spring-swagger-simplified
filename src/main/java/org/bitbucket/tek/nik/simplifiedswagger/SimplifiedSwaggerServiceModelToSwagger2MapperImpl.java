@@ -794,7 +794,7 @@ private List<String> buildList(String... args)
 			Annotation matchedRequestMapping = methdoAndTag.getMatchedRequestMapping();
 			
 			op.setTags(buildList(methdoAndTag.getTag().getName()));
-			path.set(methodType, op);
+			
 			op.setOperationId(method.getName()+"-"+methodType);
 			String[] consumes = (String[]) getAnnotationAttribute(matchedRequestMapping, "consumes");
 			String[] produces = (String[]) getAnnotationAttribute(matchedRequestMapping, "produces");
@@ -866,9 +866,11 @@ private List<String> buildList(String... args)
 			addResponse(responses, HttpStatus.NOT_FOUND);
 			
 			op.setResponses(responses);
-			
-			
-			
+			Boolean hidden=(Boolean) op.getVendorExtensions().get("hidden");
+			if(hidden==null || (!hidden.booleanValue()))
+			{
+				path.set(methodType, op);
+			}
 			
 		}
 		
