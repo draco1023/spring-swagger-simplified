@@ -138,6 +138,8 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 			transformDefinitions(definitions);
 			adjustExamples(definitions);
 			
+			addApiAnnotations();
+			
 			if(showUnMappedAnnotations)
 			{
 				System.err.println("unMappedAnnotations=" + unMappedAnnotations);
@@ -153,6 +155,11 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 		
 	}
 	
+	private void addApiAnnotations() {
+		// TODO Auto-generated method stub
+		
+	}
+
 	private void removeGenricModels(Map<String, Model> definitions) {
 		Set<String> keySet = definitions.keySet();
 		Set<String> keySetToRemove=new HashSet<>();
