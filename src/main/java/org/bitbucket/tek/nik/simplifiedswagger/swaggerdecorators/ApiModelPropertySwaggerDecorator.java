@@ -25,8 +25,15 @@ import io.swagger.models.properties.StringProperty;
 
 public class ApiModelPropertySwaggerDecorator implements ISwaggerDecorator {
 	/**
-	 * 
-	 * ApiModelProperty  attributes that have been ignored are as below:
+	 * <p>
+	 * Even though trying to ignore some attributes as shown below 
+	 * its possible that they might not be really ignored.
+	 * This is because unless its a generic bean we are not creating
+	 * the actual bean model with the properties. 
+	 * We are using the already built models and properties for 
+	 * non generic beans. Will fix this properly when we do the swagger 3 version
+	 * </p>
+	 * ApiModelProperty  attributes that we are trying to ignore are as below:
 	 * <p>
 	 * <ol>
 	 * <li>
@@ -154,7 +161,7 @@ public class ApiModelPropertySwaggerDecorator implements ISwaggerDecorator {
 		
 		if(apiModelProperty.hidden())
 		{
-			property.getVendorExtensions().put("hidden", true);
+			//property.getVendorExtensions().put("hidden", true);
 		}
 		
 			
