@@ -45,22 +45,40 @@ public class ApiOperationSwaggerDecorator implements ISwaggerDecorator {
     { 
         void apply(String message, Operation operation); 
     } 
-	@Override
+	
 	/**
 	 * 
-	 * ApiOperation attributes that have been ignored are:
-	 * nickname - (cant use nickname to set operatiinId, its already set and need it)
-	 * cant use below to change what is sensibly set already
-	 * httpMethod
-	 * response
-	 * responseContainer
-	 * The following are ignored because original spring fox also is ignoring
-	 * ignoreJsonView
-	 * protocols
-	 * responseHeaders
-	 * responseReference
+	 * ApiOperation attributes that have been ignored are as below:
+	 * <p>
+	 * <ol>
 	 * 
+	 * 
+	 * <li>
+	 * httpMethod - cant  change what is sensibly set already
+	 * </li>
+	 * <li>
+	 * response - cant  change what is sensibly set already
+	 * </li>
+	 * <li>
+	 * responseContainer - cant  change what is sensibly set already
+	 * </li> 
+	 * 
+	 * <li>
+	 * ignoreJsonView - ignored because original spring fox  is ignoring
+	 * </li> 
+	 * <li>
+	 * protocols - ignored because original spring fox  is ignoring
+	 * </li> 
+	 * <li>
+	 * responseHeaders - ignored because original spring fox  is ignoring
+	 * </li> 
+	 * <li>
+	 * responseReference - ignored because original spring fox  is ignoring
+	 * </li> 
+	 * </ol>
+	 * </p>
 	 */
+	@Override
 	public void decorateOperation(Operation operation, Annotation annotation, Method method) {
 		
 		ApiOperation apiOperation=(ApiOperation) annotation;
@@ -81,7 +99,11 @@ public class ApiOperationSwaggerDecorator implements ISwaggerDecorator {
 		//in addConsumesOrProduces deviating from spring fox original behaviour slightly
 		addConsumesOrProduces(operation, apiOperation.consumes(),(message, operation1) ->operation1.addConsumes(message), (operation1)->operation1.getConsumes()==null||operation1.getConsumes().size()==0);
 		addConsumesOrProduces(operation, apiOperation.produces(),(message, operation1) ->operation1.addProduces(message),  (operation1)->operation1.getProduces()==null||operation1.getProduces().size()==0);
-		
+		String nickname = apiOperation.nickname();
+		if(nickname!=null && nickname.length()>0)
+		{
+			operation.setOperationId(nickname);
+		}
 		if(apiOperation.hidden())
 		{
 			operation.getVendorExtensions().put("hidden", apiOperation.hidden());
