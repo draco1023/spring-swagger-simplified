@@ -10,6 +10,8 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -138,7 +140,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 			transformDefinitions(definitions);
 			adjustExamples(definitions);
 			
-			
+			transformDefinitionsUsingApi(definitions);
 			
 			if(showUnMappedAnnotations)
 			{
@@ -458,7 +460,10 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 						if(field!=null)
 						{
 							Annotation[] annotations = field.getAnnotations();
+							//annotationSort(annotations);
+							
 							for (Annotation annotation : annotations) {
+								
 								handleAnnotatedProperty(property, annotation, fieldMethodType);
 							}
 						}
@@ -466,6 +471,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 						{
 							Annotation[] annotations = getter.getAnnotations();
 							for (Annotation annotation : annotations) {
+								
 								handleAnnotatedProperty(property, annotation, fieldMethodType);
 							}
 						}
@@ -494,6 +500,140 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 		}
 		
 	}
+	
+	private void transformDefinitionsUsingApi(Map<String, Model> definitions) {
+		Set<String> definitionsKeySet = definitions.keySet();
+		for (String definitionsKey : definitionsKeySet) {
+			
+			Class modelClazz=null;
+			Type modelClazzType = getClassDefinition(definitionsKey);
+			if(definitionsKey.contains(ParameterizedComponentKeySymbols.LEFT))
+			{
+				if(modelClazzType instanceof ParameterizedType)
+				{
+				ParameterizedType ParameterizedType=(java.lang.reflect.ParameterizedType) modelClazzType;
+				modelClazz = (Class) ParameterizedType.getRawType();
+				}
+			}
+			else if(modelClazzType instanceof Class)
+			{
+				modelClazz=(Class) modelClazzType;
+			}
+			
+			//we dont want to go into what we consider basic types
+			//for all the basic types we should have a mapping
+			if(BasicMappingHolder.INSTANCE.getMappedByType(modelClazz.getName())==null)
+			{
+				Model model = definitions.get(definitionsKey);
+				Map<String, Property> properties = model.getProperties();
+				
+				
+				Annotation[] declaredClassAnnotations = modelClazz.getDeclaredAnnotations();
+				for (Annotation declaredClassAnnotation : declaredClassAnnotations) {
+					//might need a api handling
+					//handleAnnotatedModel(model, declaredClassAnnotation, modelClazz);
+				}
+			
+			
+				
+				Set<String> propertiesKeySet = properties.keySet();
+				for (String propertiesKey : propertiesKeySet) {
+					Property property = properties.get(propertiesKey);
+					String name = property.getName();
+					
+				
+					
+					
+					//if(!modelClazz.isEnum())
+					{
+						//you cant put contraints on a setter only getetr or fioeld
+						Method getter=getDeclaredGetter(modelClazz, property);
+						Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey, property, getter);
+						Class fieldMethodType = getFieldMethodType(field, getter);
+						//String parameteerizedTypeIfFieldMethodTypeListOrSet = getParameteerizedTypeIfFieldMethodTypeListOrSet(
+						//		field, getter, fieldMethodType);
+						//String mappedType = BasicMappingHolder.INSTANCE.getMappedByType(fieldMethodType.getName());
+						//refToBasicIfNeeded(property, mappedType, properties, fieldMethodType);
+						//refToBasicInArrayIfNeeded(property, mappedType, properties, fieldMethodType, 
+								//parameteerizedTypeIfFieldMethodTypeListOrSet);
+						if(field!=null)
+						{
+							Annotation[] annotations = field.getAnnotations();
+							//annotationSort(annotations);
+							
+							for (Annotation annotation : annotations) {
+								
+								handleAnnotatedApiProperty(property, annotation, fieldMethodType);
+							}
+						}
+						if(getter!=null)
+						{
+							Annotation[] annotations = getter.getAnnotations();
+							for (Annotation annotation : annotations) {
+								
+								handleAnnotatedApiProperty(property, annotation, fieldMethodType);
+							}
+						}
+					}
+					
+					/*not needed here
+					 * if(property instanceof ArrayProperty)
+					{
+						ArrayProperty arrayProperty=(ArrayProperty) property;
+						String pattern = (String) arrayProperty.getVendorExtensions().get("pattern");
+						if(pattern!=null)
+						{
+							arrayProperty.getItems().getVendorExtensions().put("pattern", pattern);
+						}
+					}*/
+					
+					Boolean hidden=(Boolean) property.getVendorExtensions().get("hidden");
+					if(hidden!=null && hidden)
+					{
+						properties.remove(propertiesKey);
+					}
+					
+					
+				}
+			}
+		
+		}
+		
+		
+		/*not needed here
+		 * for (String definitionsThatCanBeRemovedKey : definitionsThatCanBeRemoved) {
+			definitions.remove(definitionsThatCanBeRemovedKey);
+		}*/
+		
+	}
+
+
+
+	private void annotationSort(Annotation[] annotations) {
+		Arrays.sort(annotations, new Comparator<Annotation>() {
+
+			@Override
+			public int compare(Annotation o1, Annotation o2) {
+				boolean o1IsSwaggerAnnotation=o1.annotationType().getPackage().getName().equals(SwaggerDecoratorConstants.SWAGGER_ANNOTATION_PACKAGE);
+				boolean o2IsSwaggerAnnotation=o2.annotationType().getPackage().getName().equals(SwaggerDecoratorConstants.SWAGGER_ANNOTATION_PACKAGE);
+				int ret=0;
+				if(o1IsSwaggerAnnotation && (!o2IsSwaggerAnnotation))
+				{
+					ret=1;
+				}
+				else if(o2IsSwaggerAnnotation && (!o1IsSwaggerAnnotation))
+				{
+					ret=-1;
+				}
+				return ret;
+			}
+			
+		});
+	}
+
+	
+
+
 
 	private Field getFieldAfterCheckingWithGetter(Class modelClazz, String propertiesKey, Property property,
 			Method getter) {
@@ -1224,6 +1364,7 @@ private String[] constrollersToIgnore= {"org.springframework.boot.autoconfigure.
 	
 	private void handleAnnotatedProperty(Property property, Annotation annotation, Class propertyType) 
 	{
+
 		if(!annotation.annotationType().getPackage().getName().equals(SwaggerDecoratorConstants.SWAGGER_ANNOTATION_PACKAGE))
 		{
 			String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
@@ -1237,6 +1378,22 @@ private String[] constrollersToIgnore= {"org.springframework.boot.autoconfigure.
 			}
 		}
 
+	}
+	
+	private void handleAnnotatedApiProperty(Property property, Annotation annotation, Class propertyType) {
+		if(annotation.annotationType().getPackage().getName().equals(SwaggerDecoratorConstants.SWAGGER_ANNOTATION_PACKAGE))
+		{
+			String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
+			if (context.containsBean(beanName)) 
+			{
+				ISwaggerDecorator bean = context.getBean(beanName, ISwaggerDecorator.class);
+				bean.decorateProperty(property, annotation, propertyType);
+			} else {
+				unMappedAnnotations.add(annotation.annotationType());
+	
+			}
+		}
+		
 	}
 	
 	private void handleAnnotatedParameter(
