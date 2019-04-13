@@ -55,6 +55,7 @@ import io.swagger.models.Info;
 import io.swagger.models.Model;
 import io.swagger.models.Operation;
 import io.swagger.models.Path;
+import io.swagger.models.RefModel;
 import io.swagger.models.Response;
 import io.swagger.models.Scheme;
 import io.swagger.models.SecurityRequirement;
@@ -142,6 +143,8 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 			
 			transformDefinitionsUsingApi(definitions);
 			
+			expandResolvableParameters(paths, definitions);
+			
 			if(showUnMappedAnnotations)
 			{
 				System.err.println("unMappedAnnotations=" + unMappedAnnotations);
@@ -155,6 +158,112 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 		
 		
 		
+	}
+
+
+
+	private void expandResolvableParameters(Map<String, Path> paths, Map<String, Model> definitions) {
+		Set<String> pathKeys = paths.keySet();
+		for (String pathKey : pathKeys) {
+			Path path = paths.get(pathKey);
+			List<Operation> operations = path.getOperations();
+			for (Operation operation : operations) {
+				List<Parameter> opParameters = operation.getParameters();
+				for (int i = 0; i < opParameters.size(); i++) 
+				{
+					Parameter parameter=opParameters.get(i);
+					if(parameter instanceof BodyParameter)
+					{
+						BodyParameter tempBodyParameter=(BodyParameter) parameter;
+						Boolean needsResolving=(Boolean) tempBodyParameter.getVendorExtensions().get("toresolve");
+						if(needsResolving!=null && needsResolving.booleanValue())
+						{
+							List<Parameter> resolvedParmeters = expandTempBodyParameters(opParameters, 
+									tempBodyParameter, definitions);
+							opParameters.remove(i);
+							
+							opParameters.addAll(i, resolvedParmeters);
+							i=i+resolvedParmeters.size();
+							
+							
+						}
+					}
+				}
+				
+			}
+		}
+	}
+
+
+
+	private List<Parameter> expandTempBodyParameters(List<Parameter> opParameters, 
+			BodyParameter tempBodyParameter, Map<String, Model> definitions) {
+		List<Parameter> resolvedParmeters= new ArrayList<>();
+		
+		RefModel schema = (RefModel) tempBodyParameter.getSchema();
+		String simpleRef = schema.getSimpleRef();
+		Class modelClazz=null;
+		Type modelClazzType = getClassDefinition(simpleRef);
+		if(simpleRef.contains(ParameterizedComponentKeySymbols.LEFT))
+		{
+			if(modelClazzType instanceof ParameterizedType)
+			{
+			ParameterizedType ParameterizedType=(java.lang.reflect.ParameterizedType) modelClazzType;
+			modelClazz = (Class) ParameterizedType.getRawType();
+			}
+		}
+		else if(modelClazzType instanceof Class)
+		{
+			modelClazz=(Class) modelClazzType;
+		}
+		
+		//we dont want to go into what we consider basic types
+		//for all the basic types we should have a mapping
+		if(BasicMappingHolder.INSTANCE.getMappedByType(modelClazz.getName())==null)
+		{
+			Model model = definitions.get(simpleRef);
+			Map<String, Property> properties = model.getProperties();
+			Set<String> keySet = properties.keySet();
+			for (String key : keySet) 
+			{
+				Property property=properties.get(key);
+				//String mappedType = BasicMappingHolder.INSTANCE.getMappedByType(property.getType());
+				//if(mappedType!=null)//why do this again
+				{
+					System.out.println(modelClazz.getName()+" prop="+property.getName()+" has type "+property.getType());
+					QueryParameter queryParameter= new QueryParameter();
+					queryParameter.setName(property.getName());
+					queryParameter.setType(property.getType());
+					queryParameter.setFormat(property.getFormat());
+					if(property instanceof ArrayProperty)
+					{
+						ArrayProperty arrayProperty=(ArrayProperty) property;
+						Property items = arrayProperty.getItems();
+						queryParameter.items(items);
+						
+					}
+					/*if(queryParameter instanceof SerializableParameter)
+					{
+						SerializableParameter sparam=(SerializableParameter) queryParameter;
+						sparam.setType(property.getType());
+						
+						sparam.setFormat(property.getFormat());
+						
+						
+					}*/
+					resolvedParmeters.add(queryParameter);
+				}
+				
+				
+				
+			}
+			
+		
+		}
+		
+		
+		
+		return resolvedParmeters;
 	}
 	
 	
@@ -963,14 +1072,39 @@ private List<String> buildList(String... args)
 				java.lang.reflect.Parameter parameter=parameters[i];
 				Type genericParameterType = genericParameterTypes[i];
 				
-			
+				
 				Parameter param = buildOpParameter(parameter, genericParameterType);
-				Annotation[] declaredAnnotations = parameter.getDeclaredAnnotations();
-				for (Annotation declaredAnnotation : declaredAnnotations) {
-					handleAnnotatedParameter( declaredAnnotation,
-							param, parameter);
+				if(param==null)
+				{
+					//then paramter is not a basic type
+					//lets get paramter array
+					//annotations must be handled from within buildOpParameters
+					//using the properties
+					
+					//List<Parameter> params = buildOpParameters(parameter, genericParameterType);
+					//opParams.addAll(params);
+					//lets instead defer the above resolution
+					//treat temprarily like a body paramter
+					//will change it later
+					ParameterContainer parameterContainer = new ParameterContainer();
+					ModelOrRefBuilder bodyParameterBuilder= new ModelOrRefBuilder(genericParameterType, parameterContainer, newModelCreator);
+					OuterContainer built = bodyParameterBuilder.build();
+					BodyParameter bodyParameter = parameterContainer.getBodyParameter();
+					bodyParameter.getVendorExtensions().put("toresolve", true);
+					param=bodyParameter;
+					opParams.add(bodyParameter);
 				}
-				opParams.add(param);
+					
+				else
+				{
+					Annotation[] declaredAnnotations = parameter.getDeclaredAnnotations();
+					for (Annotation declaredAnnotation : declaredAnnotations) {
+						handleAnnotatedParameter( declaredAnnotation,
+								param, parameter);
+					}
+					opParams.add(param);
+				}
+				
 				/*
 				 * For now because we are using only vendor extensions this will work.
 				 * Will improvise later when we stop using vendor extensions
@@ -1013,6 +1147,8 @@ private List<String> buildList(String... args)
 			}
 			
 		}
+		
+		
 		
 		
 	}
@@ -1068,11 +1204,46 @@ private List<String> buildList(String... args)
 	}
 
 
-
+/*
+	private List<Parameter> buildOpParameters(java.lang.reflect.Parameter parameter,
+			Type genericParameterType) {
 	
+		List<Parameter> params= new ArrayList<>();
+				
+		MultiParameterContainer multiParameterContainer = new MultiParameterContainer();
+			ModelOrRefBuilder bodyParameterBuilder= new ModelOrRefBuilder(genericParameterType, multiParameterContainer, newModelCreator);
+			OuterContainer built = bodyParameterBuilder.build();
+			RefModel schema = (RefModel) multiParameterContainer.getSchema();
+			String simpleRef = schema.getSimpleRef();
+			Class modelClazz=null;
+			Type modelClazzType = getClassDefinition(simpleRef);
+			if(simpleRef.contains(ParameterizedComponentKeySymbols.LEFT))
+			{
+				if(modelClazzType instanceof ParameterizedType)
+				{
+				ParameterizedType ParameterizedType=(java.lang.reflect.ParameterizedType) modelClazzType;
+				modelClazz = (Class) ParameterizedType.getRawType();
+				}
+			}
+			else if(modelClazzType instanceof Class)
+			{
+				modelClazz=(Class) modelClazzType;
+			}
+			
+			//we dont want to go into what we consider basic types
+			//for all the basic types we should have a mapping
+			if(BasicMappingHolder.INSTANCE.getMappedByType(modelClazz.getName())==null)
+			{
+				Model model = definitions.get(simpleRef);
+			
+			}
+			
+	
+		return params;
+	}
 	
 
-
+*/
 	private Parameter buildOpParameter(java.lang.reflect.Parameter parameter,
 			Type genericParameterType) {
 		Annotation[] annotations = parameter.getDeclaredAnnotations();
@@ -1113,16 +1284,81 @@ private List<String> buildList(String... args)
 		{
 			param= new FormParameter();
 		}
-		
-		param.setName(parameter.getName());
-		
-		if(param instanceof SerializableParameter)
+		else
 		{
-			SerializableParameter sparam=(SerializableParameter) param;
-			//sparam.setType(parameter.getType().getName());
-			BasicMappingHolder.INSTANCE.setTypeAndFormat(sparam, parameter.getType());
+			//default should be QueryParameter if its basic
+			//else must introspect and build array of paramters
+			//here will only handle for basic
+			//can also handle for lsist, set and maybe array
+			//of basic types
+			boolean isBasic=false;
+			if(genericParameterType instanceof ParameterizedType)
+			{
+				ParameterizedType parameterizedType=(ParameterizedType) genericParameterType;
+				Type rawType = parameterizedType.getRawType();
+				if(rawType instanceof Class)
+				{
+					Class clazz=(Class) rawType;
+					if(List.class.isAssignableFrom(clazz)||Set.class.isAssignableFrom(clazz))
+					{
+						Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
+						if(actualTypeArguments.length==1)
+						{
+							Type actualTypeArgument=actualTypeArguments[0];
+							if(actualTypeArgument instanceof Class)
+							{
+								Class actualTypeArgumentAsClass=(Class) actualTypeArgument; 
+								String mappedType = BasicMappingHolder.INSTANCE.getMappedByType(actualTypeArgumentAsClass.getName());
+								if(mappedType!=null)
+								{
+									isBasic=true;
+								}
+							}
+						}
+					}
+				}
+			}
+			if(!isBasic)
+			{
+				Class clazz=parameter.getType();
+				if(clazz.isArray())
+				{
+					Class componentType = clazz.getComponentType();
+					String mappedType = BasicMappingHolder.INSTANCE.getMappedByType(componentType.getName());
+					if(mappedType!=null)
+					{
+						isBasic=true;
+					}
+				}
+			}
+			if(!isBasic)
+			{
+				String mappedType = BasicMappingHolder.INSTANCE.getMappedByType(parameter.getType().getName());
+				if(mappedType!=null)
+				{
+					isBasic=true;
+				}
+			}
+			if(isBasic)
+			{
+				param= new QueryParameter();
+			}
 			
 		}
+		
+		if(param!=null)
+		{
+			param.setName(parameter.getName());
+			
+			if(param instanceof SerializableParameter)
+			{
+				SerializableParameter sparam=(SerializableParameter) param;
+				//sparam.setType(parameter.getType().getName());
+				BasicMappingHolder.INSTANCE.setTypeAndFormat(sparam, parameter.getType());
+				
+			}
+		}
+		
 		
 		
 		
