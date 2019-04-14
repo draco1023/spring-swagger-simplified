@@ -141,9 +141,10 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 			transformDefinitions(definitions);
 			adjustExamples(definitions);
 			
+			expandResolvableParameters(paths, definitions);
 			transformDefinitionsUsingApi(definitions);
 			
-			expandResolvableParameters(paths, definitions);
+			
 			
 			if(showUnMappedAnnotations)
 			{
@@ -172,6 +173,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 				for (int i = 0; i < opParameters.size(); i++) 
 				{
 					Parameter parameter=opParameters.get(i);
+					
 					if(parameter instanceof BodyParameter)
 					{
 						BodyParameter tempBodyParameter=(BodyParameter) parameter;
@@ -188,10 +190,34 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 							
 						}
 					}
+					else
+					{
+						describeParameter(parameter);
+					}
+					/*
+					 * For now because we are using only vendor extensions this will work.
+					 * Will improvise later when we stop using vendor extensions
+					 */
+					
+					
 				}
 				
 			}
 		}
+	}
+
+
+
+	private void describeParameter(Parameter parameter) {
+		String existingParameterDescription = parameter.getDescription();
+		existingParameterDescription=existingParameterDescription!=null?existingParameterDescription:parameter.getName();
+		Map<String, Object> vendorExtensions = parameter.getVendorExtensions();
+		StringBuilder sb= new StringBuilder();
+		sb.append(existingParameterDescription);
+		addDescriptionUsingVendorExtensions( vendorExtensions, sb);
+		//sb.append("</h6>");
+		//sb.append("</table>");
+		parameter.setDescription(sb.toString());
 	}
 
 
@@ -227,31 +253,35 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 			for (String key : keySet) 
 			{
 				Property property=properties.get(key);
-				//String mappedType = BasicMappingHolder.INSTANCE.getMappedByType(property.getType());
-				//if(mappedType!=null)//why do this again
 				{
 					System.out.println(modelClazz.getName()+" prop="+property.getName()+" has type "+property.getType());
-					QueryParameter queryParameter= new QueryParameter();
-					queryParameter.setName(property.getName());
-					queryParameter.setType(property.getType());
-					queryParameter.setFormat(property.getFormat());
-					if(property instanceof ArrayProperty)
+					if(!property.getType().equals("ref"))
 					{
-						ArrayProperty arrayProperty=(ArrayProperty) property;
-						Property items = arrayProperty.getItems();
-						queryParameter.items(items);
+						QueryParameter queryParameter= new QueryParameter();
+						queryParameter.setName(property.getName());
+						queryParameter.setType(property.getType());
+						queryParameter.setFormat(property.getFormat());
+						if(property instanceof ArrayProperty)
+						{
+							ArrayProperty arrayProperty=(ArrayProperty) property;
+							Property items = arrayProperty.getItems();
+							queryParameter.items(items);
+							
+						}
+						Map<String, Object> propertyVendorExtensions = property.getVendorExtensions();
+						Set<String> proertyVendorExtensionskeySet = propertyVendorExtensions.keySet();
+						for (String proertyVendorExtensionskey : proertyVendorExtensionskeySet) {
+							queryParameter.getVendorExtensions().put(proertyVendorExtensionskey, propertyVendorExtensions.get(proertyVendorExtensionskey));
+						}
+						describeParameter(queryParameter);
+						resolvedParmeters.add(queryParameter);
+					}
+					else
+					{
 						
 					}
-					/*if(queryParameter instanceof SerializableParameter)
-					{
-						SerializableParameter sparam=(SerializableParameter) queryParameter;
-						sparam.setType(property.getType());
-						
-						sparam.setFormat(property.getFormat());
-						
-						
-					}*/
-					resolvedParmeters.add(queryParameter);
+					
+					
 				}
 				
 				
@@ -1105,20 +1135,7 @@ private List<String> buildList(String... args)
 					opParams.add(param);
 				}
 				
-				/*
-				 * For now because we are using only vendor extensions this will work.
-				 * Will improvise later when we stop using vendor extensions
-				 */
 				
-				String existingParameterDescription = param.getDescription();
-				existingParameterDescription=existingParameterDescription!=null?existingParameterDescription:param.getName();
-				Map<String, Object> vendorExtensions = param.getVendorExtensions();
-				StringBuilder sb= new StringBuilder();
-				sb.append(existingParameterDescription);
-				addDescriptionUsingVendorExtensions( vendorExtensions, sb);
-				//sb.append("</h6>");
-				//sb.append("</table>");
-				param.setDescription(sb.toString());
 			}
 			op.setParameters(opParams);
 			Class<?> returnType = method.getReturnType();
