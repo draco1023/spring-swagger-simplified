@@ -395,19 +395,58 @@ private List<Parameter> buildNewResolvedParameters(String prefix, Map<String, Mo
 			Property property=properties.get(key);
 			{
 				System.out.println(modelClazz.getName()+" prop="+property.getName()+" has type "+property.getType()+" of class"+property.getClass().getName());
-				if(!property.getType().equals("ref"))
+				
+				if(property instanceof ArrayProperty)
+				{
+					ArrayProperty arrayProperty=(ArrayProperty) property;
+					Property items = arrayProperty.getItems();
+					System.out.println(arrayProperty.getName()+" has items of type "+ items.getClass().getName());
+					if(items instanceof RefProperty)
+					{
+						RefProperty itemsRefProperty=(RefProperty) items;
+						List<Parameter> resolvedParmeters = buildNewResolvedParameters(prefix+key+"[0].", definitions, itemsRefProperty.getSimpleRef());
+						//no need to remove before adding because nothing has been added yet
+						
+						resolvedNewParmeters.addAll(i, resolvedParmeters);
+						i=i+resolvedParmeters.size()-1;
+					}
+					else
+					{
+						QueryParameter queryParameter= new QueryParameter();
+						queryParameter.setName(prefix+property.getName());
+						queryParameter.setType(property.getType());
+						queryParameter.setFormat(property.getFormat());
+						queryParameter.items(items);
+						queryParameter.required(property.getRequired());
+						Map<String, Object> propertyVendorExtensions = property.getVendorExtensions();
+						Set<String> proertyVendorExtensionskeySet = propertyVendorExtensions.keySet();
+						for (String proertyVendorExtensionskey : proertyVendorExtensionskeySet) {
+							queryParameter.getVendorExtensions().put(proertyVendorExtensionskey, propertyVendorExtensions.get(proertyVendorExtensionskey));
+						}
+						describeParameter(queryParameter);
+						resolvedNewParmeters.add(queryParameter);
+						
+					}
+					
+					
+					
+					
+				}
+				else if(property instanceof RefProperty)
+				{
+					RefProperty refProperty=(RefProperty) property;
+					List<Parameter> resolvedParmeters = buildNewResolvedParameters(prefix+key+".", definitions, refProperty.getSimpleRef());
+					//no need to remove before adding because nothing has been added yet
+					
+					resolvedNewParmeters.addAll(i, resolvedParmeters);
+					i=i+resolvedParmeters.size()-1;	
+				}
+				else if(!property.getType().equals("ref"))
 				{
 					QueryParameter queryParameter= new QueryParameter();
 					queryParameter.setName(prefix+property.getName());
 					queryParameter.setType(property.getType());
 					queryParameter.setFormat(property.getFormat());
-					if(property instanceof ArrayProperty)
-					{
-						ArrayProperty arrayProperty=(ArrayProperty) property;
-						Property items = arrayProperty.getItems();
-						queryParameter.items(items);
-						
-					}
 					queryParameter.required(property.getRequired());
 					Map<String, Object> propertyVendorExtensions = property.getVendorExtensions();
 					Set<String> proertyVendorExtensionskeySet = propertyVendorExtensions.keySet();
@@ -416,23 +455,13 @@ private List<Parameter> buildNewResolvedParameters(String prefix, Map<String, Mo
 					}
 					describeParameter(queryParameter);
 					resolvedNewParmeters.add(queryParameter);
+					
+					
 				}
 				else
 				{
-					if(property instanceof RefProperty)
-					{
-						RefProperty refProperty=(RefProperty) property;
-						List<Parameter> resolvedParmeters = buildNewResolvedParameters(prefix+key+".", definitions, refProperty.getSimpleRef());
-						//no need to remove before adding because nothing has been added yet
-						
-						resolvedNewParmeters.addAll(i, resolvedParmeters);
-						i=i+resolvedNewParmeters.size()-1;
-					
-					}
-					else
-					{
 						throw new SimplifiedSwaggerException("unexpected see what aelse and if needed impmrove logic");
-					}
+					
 				}
 				
 				
