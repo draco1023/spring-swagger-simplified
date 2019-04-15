@@ -351,11 +351,11 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 		
 		RefModel schema = (RefModel) tempBodyParameter.getSchema();
 		String simpleRef = schema.getSimpleRef();
-		return buildNewResolvedParameters("", definitions, simpleRef);
+		return buildNewResolvedParameters("", definitions, simpleRef, tempBodyParameter.getRequired());
 	}
 
 
-private List<Parameter> buildNewResolvedParameters(String prefix, Map<String, Model> definitions, String simpleRef) {
+private List<Parameter> buildNewResolvedParameters(String prefix, Map<String, Model> definitions, String simpleRef, boolean parentIsRequired) {
 	
 	List<Parameter> resolvedNewParmeters= new ArrayList<>();
 	
@@ -401,7 +401,7 @@ private List<Parameter> buildNewResolvedParameters(String prefix, Map<String, Mo
 					if(items instanceof RefProperty)
 					{
 						RefProperty itemsRefProperty=(RefProperty) items;
-						List<Parameter> resolvedParmeters = buildNewResolvedParameters(prefix+key+"[0].", definitions, itemsRefProperty.getSimpleRef());
+						List<Parameter> resolvedParmeters = buildNewResolvedParameters(prefix+key+"[0].", definitions, itemsRefProperty.getSimpleRef(), parentIsRequired && itemsRefProperty.getRequired() );
 						//no need to remove before adding because nothing has been added yet
 						
 						resolvedNewParmeters.addAll(i, resolvedParmeters);
@@ -414,7 +414,7 @@ private List<Parameter> buildNewResolvedParameters(String prefix, Map<String, Mo
 						queryParameter.setType(property.getType());
 						queryParameter.setFormat(property.getFormat());
 						queryParameter.items(items);
-						queryParameter.required(property.getRequired());
+						queryParameter.required(parentIsRequired && property.getRequired());
 						Map<String, Object> propertyVendorExtensions = property.getVendorExtensions();
 						Set<String> proertyVendorExtensionskeySet = propertyVendorExtensions.keySet();
 						for (String proertyVendorExtensionskey : proertyVendorExtensionskeySet) {
@@ -432,7 +432,7 @@ private List<Parameter> buildNewResolvedParameters(String prefix, Map<String, Mo
 				else if(property instanceof RefProperty)
 				{
 					RefProperty refProperty=(RefProperty) property;
-					List<Parameter> resolvedParmeters = buildNewResolvedParameters(prefix+key+".", definitions, refProperty.getSimpleRef());
+					List<Parameter> resolvedParmeters = buildNewResolvedParameters(prefix+key+".", definitions, refProperty.getSimpleRef(), parentIsRequired && refProperty.getRequired());
 					//no need to remove before adding because nothing has been added yet
 					
 					resolvedNewParmeters.addAll(i, resolvedParmeters);
@@ -444,7 +444,7 @@ private List<Parameter> buildNewResolvedParameters(String prefix, Map<String, Mo
 					queryParameter.setName(prefix+property.getName());
 					queryParameter.setType(property.getType());
 					queryParameter.setFormat(property.getFormat());
-					queryParameter.required(property.getRequired());
+					queryParameter.required(parentIsRequired && property.getRequired());
 					Map<String, Object> propertyVendorExtensions = property.getVendorExtensions();
 					Set<String> proertyVendorExtensionskeySet = propertyVendorExtensions.keySet();
 					for (String proertyVendorExtensionskey : proertyVendorExtensionskeySet) {
