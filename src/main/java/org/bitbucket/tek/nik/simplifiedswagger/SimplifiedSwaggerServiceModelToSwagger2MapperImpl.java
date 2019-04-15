@@ -2,6 +2,7 @@ package org.bitbucket.tek.nik.simplifiedswagger;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
@@ -24,6 +25,7 @@ import org.bitbucket.tek.nik.simplifiedswagger.exception.SimplifiedSwaggerExcept
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ModelOrRefBuilder;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.OuterContainer;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ParameterContainer;
+import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ParameterizedComponentKeyBuilder;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ParameterizedComponentKeySymbols;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ResponseContainer;
 import org.bitbucket.tek.nik.simplifiedswagger.newmodels.NewModelCreator;
@@ -137,6 +139,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 					
 				}
 			}
+			fixGenericReferencesInNonGenericBeans(definitions);
 			newModelCreator.build();
 			transformDefinitions(definitions);
 			adjustExamples(definitions);
@@ -158,6 +161,129 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 				
 		
 		
+		
+	}
+
+
+	/**
+	 * no need for this method to rcurse diurectly
+	 */
+
+	private void fixGenericReferencesInNonGenericBeans(Map<String, Model> definitions) {
+		Set<String> keySet = definitions.keySet();
+		for (String definitionsKey : keySet) 
+		{
+			if(!definitionsKey.contains(ParameterizedComponentKeySymbols.LEFT))
+			{
+				Type modelClazzType = getClassDefinition(definitionsKey);
+				Class modelClazz=(Class) modelClazzType;
+				//we dont want to go into what we consider basic types
+				//for all the basic types we should have a mapping
+				if(BasicMappingHolder.INSTANCE.getMappedByType(modelClazz.getName())==null)
+				{
+					Model model = definitions.get(definitionsKey);
+					Map<String, Property> properties = model.getProperties();
+					Set<String> propertiesKeySet = properties.keySet();
+					for (String propertiesKey : propertiesKeySet) 
+					{
+						Property property = properties.get(propertiesKey);
+						if(property instanceof RefProperty)
+						{
+							RefProperty refProperty=(RefProperty) property;
+							
+							System.out.println("got this simple ref"+refProperty.getSimpleRef()+" and "+refProperty.get$ref() );
+							
+							Method getter=getDeclaredGetter(modelClazz, property);
+							Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey, property, getter);
+							Class fieldMethodType = getFieldMethodType(field, getter);
+							Type fieldMethodGenericType = getFieldMethodGenericType(field, getter);
+							
+							if(fieldMethodGenericType instanceof ParameterizedType)
+							{
+								ParameterizedType parameterizedType= (ParameterizedType) fieldMethodGenericType;
+								Model parameterizedPropertiesModel = definitions.get(refProperty.getSimpleRef());
+								if(parameterizedPropertiesModel==null)
+								{
+									//compute new 
+									String newKey = ParameterizedComponentKeyBuilder.buildKeyForParameterizedComponentType(parameterizedType);
+									refProperty.set$ref(newKey);
+									newModelCreator.addIfParemeterizedType(parameterizedType, false);
+									System.out.println("changed to this simple ref"+refProperty.getSimpleRef()+" and "+refProperty.get$ref() );
+								}
+							}
+							
+							
+							
+						}
+						else if(property instanceof ArrayProperty)
+						{
+							ArrayProperty arrayProperty=(ArrayProperty) property;
+							Property items = arrayProperty.getItems();
+							if(items instanceof RefProperty)
+							{
+								RefProperty refProperty=(RefProperty) items;
+								Method getter=getDeclaredGetter(modelClazz, property);
+								Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey, property, getter);
+								Class fieldMethodType = getFieldMethodType(field, getter);
+								Type fieldMethodGenericType1=getFieldMethodGenericType(field, getter);
+								Type compaonentType=null;
+								if(fieldMethodGenericType1 instanceof GenericArrayType)
+								{
+									GenericArrayType genericArrayType=(java.lang.reflect.GenericArrayType) fieldMethodGenericType1;
+									compaonentType=genericArrayType.getGenericComponentType();
+								}
+								else if(fieldMethodType.isArray())
+								{
+									compaonentType=fieldMethodType.getComponentType();
+								}
+								else //must be list or set
+								{
+									compaonentType=getParameteerizedTypeIfFieldMethodTypeListOrSet(
+											field, getter, fieldMethodType);
+								}
+								if(compaonentType!=null)
+								{
+									if(compaonentType instanceof ParameterizedType)
+									{
+										ParameterizedType parameterizedType= (ParameterizedType) compaonentType;
+										Model parameterizedPropertiesModel = definitions.get(refProperty.getSimpleRef());
+										//if(parameterizedPropertiesModel==null)//its having wrong assignments//best to replace
+										{
+											//compute new 
+											String newKey = ParameterizedComponentKeyBuilder.buildKeyForParameterizedComponentType(parameterizedType);
+											refProperty.set$ref(newKey);
+											newModelCreator.addIfParemeterizedType(parameterizedType, false);
+											System.out.println("changed to this simple ref"+refProperty.getSimpleRef()+" and "+refProperty.get$ref() );
+										}
+									}
+								}
+								else
+								{
+									throw new SimplifiedSwaggerException(propertiesKey+" is an array  in "+modelClazz.getName() +" but could not find type of row");
+								}
+								
+							}
+							else
+							{
+								//if not RefProperty we need not do
+							}
+							
+							
+						
+							
+							
+						}
+					}
+						
+
+			
+							
+				}
+			}
+				
+				
+			
+		}
 		
 	}
 
@@ -221,80 +347,108 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 	}
 
 
-
+//here must add drill logic which uses .
 	private List<Parameter> expandTempBodyParameters(List<Parameter> opParameters, 
 			BodyParameter tempBodyParameter, Map<String, Model> definitions) {
-		List<Parameter> resolvedParmeters= new ArrayList<>();
 		
 		RefModel schema = (RefModel) tempBodyParameter.getSchema();
 		String simpleRef = schema.getSimpleRef();
-		Class modelClazz=null;
-		Type modelClazzType = getClassDefinition(simpleRef);
-		if(simpleRef.contains(ParameterizedComponentKeySymbols.LEFT))
+		return buildNewResolvedParameters("", definitions, simpleRef);
+	}
+
+
+private List<Parameter> buildNewResolvedParameters(String prefix, Map<String, Model> definitions, String simpleRef) {
+	
+	List<Parameter> resolvedNewParmeters= new ArrayList<>();
+	
+	Class modelClazz=null;
+	Type modelClazzType = getClassDefinition(simpleRef);
+	if(simpleRef.contains(ParameterizedComponentKeySymbols.LEFT))
+	{
+		if(modelClazzType instanceof ParameterizedType)
 		{
-			if(modelClazzType instanceof ParameterizedType)
-			{
-			ParameterizedType ParameterizedType=(java.lang.reflect.ParameterizedType) modelClazzType;
-			modelClazz = (Class) ParameterizedType.getRawType();
-			}
+		ParameterizedType ParameterizedType=(java.lang.reflect.ParameterizedType) modelClazzType;
+		modelClazz = (Class) ParameterizedType.getRawType();
 		}
-		else if(modelClazzType instanceof Class)
-		{
-			modelClazz=(Class) modelClazzType;
-		}
+	}
+	else if(modelClazzType instanceof Class)
+	{
+		modelClazz=(Class) modelClazzType;
+	}
+	
+	//we dont want to go into what we consider basic types
+	//for all the basic types we should have a mapping
+	if(BasicMappingHolder.INSTANCE.getMappedByType(modelClazz.getName())==null)
+	{
+		Model model = definitions.get(simpleRef);
+		Map<String, Property> properties = model.getProperties();
+		Set<String> keySet = properties.keySet();
 		
-		//we dont want to go into what we consider basic types
-		//for all the basic types we should have a mapping
-		if(BasicMappingHolder.INSTANCE.getMappedByType(modelClazz.getName())==null)
+		List<String> keyList=new ArrayList<>();
+		for (String key : keySet) {
+			keyList.add(key);
+		}
+		for (int i = 0; i < keyList.size(); i++) 
 		{
-			Model model = definitions.get(simpleRef);
-			Map<String, Property> properties = model.getProperties();
-			Set<String> keySet = properties.keySet();
-			for (String key : keySet) 
+			String key=keyList.get(i);
+		
+			Property property=properties.get(key);
 			{
-				Property property=properties.get(key);
+				System.out.println(modelClazz.getName()+" prop="+property.getName()+" has type "+property.getType()+" of class"+property.getClass().getName());
+				if(!property.getType().equals("ref"))
 				{
-					System.out.println(modelClazz.getName()+" prop="+property.getName()+" has type "+property.getType());
-					if(!property.getType().equals("ref"))
+					QueryParameter queryParameter= new QueryParameter();
+					queryParameter.setName(prefix+property.getName());
+					queryParameter.setType(property.getType());
+					queryParameter.setFormat(property.getFormat());
+					if(property instanceof ArrayProperty)
 					{
-						QueryParameter queryParameter= new QueryParameter();
-						queryParameter.setName(property.getName());
-						queryParameter.setType(property.getType());
-						queryParameter.setFormat(property.getFormat());
-						if(property instanceof ArrayProperty)
-						{
-							ArrayProperty arrayProperty=(ArrayProperty) property;
-							Property items = arrayProperty.getItems();
-							queryParameter.items(items);
-							
-						}
-						Map<String, Object> propertyVendorExtensions = property.getVendorExtensions();
-						Set<String> proertyVendorExtensionskeySet = propertyVendorExtensions.keySet();
-						for (String proertyVendorExtensionskey : proertyVendorExtensionskeySet) {
-							queryParameter.getVendorExtensions().put(proertyVendorExtensionskey, propertyVendorExtensions.get(proertyVendorExtensionskey));
-						}
-						describeParameter(queryParameter);
-						resolvedParmeters.add(queryParameter);
+						ArrayProperty arrayProperty=(ArrayProperty) property;
+						Property items = arrayProperty.getItems();
+						queryParameter.items(items);
+						
+					}
+					queryParameter.required(property.getRequired());
+					Map<String, Object> propertyVendorExtensions = property.getVendorExtensions();
+					Set<String> proertyVendorExtensionskeySet = propertyVendorExtensions.keySet();
+					for (String proertyVendorExtensionskey : proertyVendorExtensionskeySet) {
+						queryParameter.getVendorExtensions().put(proertyVendorExtensionskey, propertyVendorExtensions.get(proertyVendorExtensionskey));
+					}
+					describeParameter(queryParameter);
+					resolvedNewParmeters.add(queryParameter);
+				}
+				else
+				{
+					if(property instanceof RefProperty)
+					{
+						RefProperty refProperty=(RefProperty) property;
+						List<Parameter> resolvedParmeters = buildNewResolvedParameters(prefix+key+".", definitions, refProperty.getSimpleRef());
+						//no need to remove before adding because nothing has been added yet
+						
+						resolvedNewParmeters.addAll(i, resolvedParmeters);
+						i=i+resolvedNewParmeters.size()-1;
+					
 					}
 					else
 					{
-						
+						throw new SimplifiedSwaggerException("unexpected see what aelse and if needed impmrove logic");
 					}
-					
-					
 				}
-				
 				
 				
 			}
 			
-		
+			
+			
 		}
 		
-		
-		
-		return resolvedParmeters;
+	
 	}
+	
+	
+	
+	return resolvedNewParmeters;
+}
 	
 	
 
@@ -350,7 +504,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 					Method getter=getDeclaredGetter(modelClazz, property);
 					Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey, property, getter);
 					Class fieldMethodType = getFieldMethodType(field, getter);
-					String parameteerizedTypeIfFieldMethodTypeListOrSet = getParameteerizedTypeIfFieldMethodTypeListOrSet(
+					String parameteerizedTypeIfFieldMethodTypeListOrSet = getParameteerizedTypeNameIfFieldMethodTypeListOrSet(
 							field, getter, fieldMethodType);
 					String mappedType = BasicMappingHolder.INSTANCE.getMappedByType(fieldMethodType.getName());
 					createExampleForBasicTypes(property, fieldMethodType.getName(), mappedType);
@@ -590,7 +744,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 						Method getter=getDeclaredGetter(modelClazz, property);
 						Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey, property, getter);
 						Class fieldMethodType = getFieldMethodType(field, getter);
-						String parameteerizedTypeIfFieldMethodTypeListOrSet = getParameteerizedTypeIfFieldMethodTypeListOrSet(
+						String parameteerizedTypeIfFieldMethodTypeListOrSet = getParameteerizedTypeNameIfFieldMethodTypeListOrSet(
 								field, getter, fieldMethodType);
 						String mappedType = BasicMappingHolder.INSTANCE.getMappedByType(fieldMethodType.getName());
 						refToBasicIfNeeded(property, mappedType, properties, fieldMethodType);
@@ -792,13 +946,14 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 		return field;
 	}
 
-	private String getParameteerizedTypeIfFieldMethodTypeListOrSet(Field field, Method getter, Class fieldMethodType) {
-		String parameteerizedTypeIfFieldMethodTypeListOrSet =null;
+	
+	private Type getParameteerizedTypeIfFieldMethodTypeListOrSet(Field field, Method getter, Class fieldMethodType) {
+		Type parameteerizedTypeIfFieldMethodTypeListOrSet =null;
 		if(field!=null)
 		{
 
 			parameteerizedTypeIfFieldMethodTypeListOrSet = 
-					getParameterizedTypeIfListOrSet(field.getGenericType(),
+					getParameterizedTypIfListOrSet(field.getGenericType(),
 					fieldMethodType);
 			
 			
@@ -807,7 +962,27 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 		{
 
 			parameteerizedTypeIfFieldMethodTypeListOrSet = 
-					getParameterizedTypeIfListOrSet(getter.getGenericReturnType(),
+					getParameterizedTypIfListOrSet(getter.getGenericReturnType(),
+					fieldMethodType);
+		}
+		return parameteerizedTypeIfFieldMethodTypeListOrSet;
+	}
+	private String getParameteerizedTypeNameIfFieldMethodTypeListOrSet(Field field, Method getter, Class fieldMethodType) {
+		String parameteerizedTypeIfFieldMethodTypeListOrSet =null;
+		if(field!=null)
+		{
+
+			parameteerizedTypeIfFieldMethodTypeListOrSet = 
+					getParameterizedTypeNameIfListOrSet(field.getGenericType(),
+					fieldMethodType);
+			
+			
+		}
+		if(getter!=null)
+		{
+
+			parameteerizedTypeIfFieldMethodTypeListOrSet = 
+					getParameterizedTypeNameIfListOrSet(getter.getGenericReturnType(),
 					fieldMethodType);
 		}
 		return parameteerizedTypeIfFieldMethodTypeListOrSet;
@@ -830,10 +1005,37 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 		}
 		return fieldMethodType;
 	}
+	
+	private Type getFieldMethodGenericType(Field field, Method getter) {
+		Type fieldMethodType=null;
+		
+		if(field!=null)
+		{
+			fieldMethodType=field.getGenericType();
+		}
+		if(getter!=null)
+		{
+			fieldMethodType=getter.getGenericReturnType();
+			
+		}
+		return fieldMethodType;
+	}
+	
+	
 
 
-	private String getParameterizedTypeIfListOrSet(Type genericType, Class fieldMethodType) {
+	private String getParameterizedTypeNameIfListOrSet(Type genericType, Class fieldMethodType) {
 		String parameteerizedTypeIfFieldMethodTypeListOrSet=null;
+		Type type = getParameterizedTypIfListOrSet(genericType, fieldMethodType);
+		if(type!=null)
+		{
+			parameteerizedTypeIfFieldMethodTypeListOrSet=type.getTypeName();
+		}
+		return parameteerizedTypeIfFieldMethodTypeListOrSet;
+	}
+	
+	private Type getParameterizedTypIfListOrSet(Type genericType, Class fieldMethodType) {
+		Type parameteerizedTypeIfFieldMethodTypeListOrSet=null;
 		if(List.class.isAssignableFrom(fieldMethodType)||Set.class.isAssignableFrom(fieldMethodType))
 		{
 			
@@ -843,7 +1045,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 				Type[] actualTypeArguments = pt.getActualTypeArguments();
 				if(actualTypeArguments.length==1)
 				{
-					parameteerizedTypeIfFieldMethodTypeListOrSet=actualTypeArguments[0].getTypeName();
+					parameteerizedTypeIfFieldMethodTypeListOrSet=actualTypeArguments[0];
 				}
 				
 			}
