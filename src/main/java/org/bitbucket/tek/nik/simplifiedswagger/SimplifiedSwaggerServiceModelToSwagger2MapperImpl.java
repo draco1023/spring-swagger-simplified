@@ -191,8 +191,6 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 						{
 							RefProperty refProperty=(RefProperty) property;
 							
-							System.out.println("got this simple ref"+refProperty.getSimpleRef()+" and "+refProperty.get$ref() );
-							
 							Method getter=getDeclaredGetter(modelClazz, property);
 							Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey, property, getter);
 							Class fieldMethodType = getFieldMethodType(field, getter);
@@ -208,7 +206,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 									String newKey = ParameterizedComponentKeyBuilder.buildKeyForParameterizedComponentType(parameterizedType);
 									refProperty.set$ref(newKey);
 									newModelCreator.addIfParemeterizedType(parameterizedType, false);
-									System.out.println("changed to this simple ref"+refProperty.getSimpleRef()+" and "+refProperty.get$ref() );
+
 								}
 							}
 							
@@ -253,7 +251,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 											String newKey = ParameterizedComponentKeyBuilder.buildKeyForParameterizedComponentType(parameterizedType);
 											refProperty.set$ref(newKey);
 											newModelCreator.addIfParemeterizedType(parameterizedType, false);
-											System.out.println("changed to this simple ref"+refProperty.getSimpleRef()+" and "+refProperty.get$ref() );
+
 										}
 									}
 								}
@@ -394,13 +392,12 @@ private List<Parameter> buildNewResolvedParameters(String prefix, Map<String, Mo
 		
 			Property property=properties.get(key);
 			{
-				System.out.println(modelClazz.getName()+" prop="+property.getName()+" has type "+property.getType()+" of class"+property.getClass().getName());
 				
 				if(property instanceof ArrayProperty)
 				{
 					ArrayProperty arrayProperty=(ArrayProperty) property;
 					Property items = arrayProperty.getItems();
-					System.out.println(arrayProperty.getName()+" has items of type "+ items.getClass().getName());
+				
 					if(items instanceof RefProperty)
 					{
 						RefProperty itemsRefProperty=(RefProperty) items;
