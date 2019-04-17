@@ -14,7 +14,11 @@ public class NotNullSwaggerDecorator implements ISwaggerDecorator {
 	@Override
 	public void decorateProperty(Property property, Annotation annotation,Class propertyType) {
 
-		property.setRequired(true);
+		if(!propertyType.isArray())
+		{
+			property.setRequired(true);
+		}
+		
 		populateVendorExtensions(property.getVendorExtensions());
 	}
 
@@ -22,7 +26,11 @@ public class NotNullSwaggerDecorator implements ISwaggerDecorator {
 
 	@Override
 	public void decorateParameter(Parameter parameter, Annotation annotation,java.lang.reflect.Parameter methodParameter) {
-		parameter.setRequired(true);
+		if(!methodParameter.getType().isArray())
+		{
+			parameter.setRequired(true);
+		}
+		
 		populateVendorExtensions(parameter.getVendorExtensions());
 		
 	}

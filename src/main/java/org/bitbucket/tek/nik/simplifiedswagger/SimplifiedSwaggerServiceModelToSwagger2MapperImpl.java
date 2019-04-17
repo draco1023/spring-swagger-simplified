@@ -217,6 +217,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 						{
 							ArrayProperty arrayProperty=(ArrayProperty) property;
 							Property items = arrayProperty.getItems();
+							
 							if(items instanceof RefProperty)
 							{
 								RefProperty refProperty=(RefProperty) items;
@@ -351,7 +352,10 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 		
 		RefModel schema = (RefModel) tempBodyParameter.getSchema();
 		String simpleRef = schema.getSimpleRef();
-		return buildNewResolvedParameters("", definitions, simpleRef, tempBodyParameter.getRequired());
+		//makes sense to treat outermost object as required
+		//hence true
+		//if its not true each field within it is not there when the outermost object is not there
+		return buildNewResolvedParameters("", definitions, simpleRef, true);
 	}
 
 
@@ -401,7 +405,7 @@ private List<Parameter> buildNewResolvedParameters(String prefix, Map<String, Mo
 					if(items instanceof RefProperty)
 					{
 						RefProperty itemsRefProperty=(RefProperty) items;
-						List<Parameter> resolvedParmeters = buildNewResolvedParameters(prefix+key+"[0].", definitions, itemsRefProperty.getSimpleRef(), parentIsRequired && itemsRefProperty.getRequired() );
+						List<Parameter> resolvedParmeters = buildNewResolvedParameters(prefix+key+"[0].", definitions, itemsRefProperty.getSimpleRef(), parentIsRequired && property.getRequired() );
 						//no need to remove before adding because nothing has been added yet
 						
 						resolvedNewParmeters.addAll(i, resolvedParmeters);
@@ -804,6 +808,13 @@ private List<Parameter> buildNewResolvedParameters(String prefix, Map<String, Mo
 						{
 							arrayProperty.getItems().getVendorExtensions().put("pattern", pattern);
 						}
+						Boolean notNullArray = (Boolean) arrayProperty.getVendorExtensions().get("notNull");
+						Integer minLengthOfArray=(Integer) arrayProperty.getVendorExtensions().get("minItems");
+						if(notNullArray!=null && notNullArray.booleanValue() && minLengthOfArray!=null && minLengthOfArray.intValue()> 0)
+						{
+							arrayProperty.setRequired(true);
+						}
+						
 					}
 					
 					
