@@ -52,6 +52,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.annotations.ApiParam;
 import io.swagger.models.ExternalDocs;
 import io.swagger.models.Info;
 import io.swagger.models.Model;
@@ -191,8 +192,8 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 						{
 							RefProperty refProperty=(RefProperty) property;
 							
-							Method getter=getDeclaredGetter(modelClazz, property);
-							Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey, property, getter);
+							Method getter=getDeclaredGetter(modelClazz, property.getName());
+							Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey, getter);
 							Class fieldMethodType = getFieldMethodType(field, getter);
 							Type fieldMethodGenericType = getFieldMethodGenericType(field, getter);
 							
@@ -221,8 +222,8 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 							if(items instanceof RefProperty)
 							{
 								RefProperty refProperty=(RefProperty) items;
-								Method getter=getDeclaredGetter(modelClazz, property);
-								Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey, property, getter);
+								Method getter=getDeclaredGetter(modelClazz, property.getName());
+								Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey,  getter);
 								Class fieldMethodType = getFieldMethodType(field, getter);
 								Type fieldMethodGenericType1=getFieldMethodGenericType(field, getter);
 								Type compaonentType=null;
@@ -395,7 +396,8 @@ private List<Parameter> buildNewResolvedParameters(String prefix, Map<String, Mo
 			String key=keyList.get(i);
 		
 			Property property=properties.get(key);
-			{
+			ApiParam apiParamFromPrperty = getApiParamFromProperty(modelClazz, key);
+			{//just limiting the variable name space //curly can be removed without any efefct
 				
 				if(property instanceof ArrayProperty)
 				{
@@ -479,6 +481,26 @@ private List<Parameter> buildNewResolvedParameters(String prefix, Map<String, Mo
 	
 	return resolvedNewParmeters;
 }
+
+
+private ApiParam getApiParamFromProperty(Class modelClazz, String key) {
+	Method getter=getDeclaredGetter(modelClazz, key);
+	Field field = getFieldAfterCheckingWithGetter(modelClazz, key,  getter);
+	Class fieldMethodType = getFieldMethodType(field, getter);
+	ApiParam apiParam=null;
+	if(field!=null)
+	{
+		apiParam=field.getAnnotation(ApiParam.class);
+		
+	}
+	if(getter!=null)
+	{
+		apiParam=getter.getAnnotation(ApiParam.class);
+		
+	}
+	return apiParam;
+	
+}
 	
 	
 
@@ -531,8 +553,8 @@ private List<Parameter> buildNewResolvedParameters(String prefix, Map<String, Mo
 				//if(!modelClazz.isEnum())
 				{
 					//you cant put contraints on a setter only getetr or fioeld
-					Method getter=getDeclaredGetter(modelClazz, property);
-					Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey, property, getter);
+					Method getter=getDeclaredGetter(modelClazz, property.getName());
+					Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey,  getter);
 					Class fieldMethodType = getFieldMethodType(field, getter);
 					String parameteerizedTypeIfFieldMethodTypeListOrSet = getParameteerizedTypeNameIfFieldMethodTypeListOrSet(
 							field, getter, fieldMethodType);
@@ -771,8 +793,8 @@ private List<Parameter> buildNewResolvedParameters(String prefix, Map<String, Mo
 					//if(!modelClazz.isEnum())
 					{
 						//you cant put contraints on a setter only getetr or fioeld
-						Method getter=getDeclaredGetter(modelClazz, property);
-						Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey, property, getter);
+						Method getter=getDeclaredGetter(modelClazz, property.getName());
+						Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey,  getter);
 						Class fieldMethodType = getFieldMethodType(field, getter);
 						String parameteerizedTypeIfFieldMethodTypeListOrSet = getParameteerizedTypeNameIfFieldMethodTypeListOrSet(
 								field, getter, fieldMethodType);
@@ -877,8 +899,8 @@ private List<Parameter> buildNewResolvedParameters(String prefix, Map<String, Mo
 					//if(!modelClazz.isEnum())
 					{
 						//you cant put contraints on a setter only getetr or fioeld
-						Method getter=getDeclaredGetter(modelClazz, property);
-						Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey, property, getter);
+						Method getter=getDeclaredGetter(modelClazz, property.getName());
+						Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey,  getter);
 						Class fieldMethodType = getFieldMethodType(field, getter);
 						//String parameteerizedTypeIfFieldMethodTypeListOrSet = getParameteerizedTypeIfFieldMethodTypeListOrSet(
 						//		field, getter, fieldMethodType);
@@ -965,9 +987,9 @@ private List<Parameter> buildNewResolvedParameters(String prefix, Map<String, Mo
 
 
 
-	private Field getFieldAfterCheckingWithGetter(Class modelClazz, String propertiesKey, Property property,
+	private Field getFieldAfterCheckingWithGetter(Class modelClazz, String propertiesKey, 
 			Method getter) {
-		Field field = getDeclaredField(modelClazz, property);
+		Field field = getDeclaredField(modelClazz, propertiesKey);
 		if(field==null && getter==null)
 		{
 			throw new SimplifiedSwaggerException("could not find getter or field for "+propertiesKey+" in  "+modelClazz.getName());
@@ -1232,18 +1254,18 @@ private List<Parameter> buildNewResolvedParameters(String prefix, Map<String, Mo
 	private Set<String> definitionsThatCanBeRemoved= new HashSet<>();
 
 
-	private Field getDeclaredField(Class modelClazz, Property property)  {
+	private Field getDeclaredField(Class modelClazz, String propertyName)  {
 		Field ret=null;
 		try {
-			ret= modelClazz.getDeclaredField(property.getName());
+			ret= modelClazz.getDeclaredField(propertyName);
 		} catch (NoSuchFieldException | SecurityException e) {
 			//do nothing here
 		}
 		return ret;
 	}
 	
-	private Method getDeclaredGetter(Class modelClazz, Property property)  {
-		String propertyName = property.getName();
+	private Method getDeclaredGetter(Class modelClazz, String propertyName)  {
+		
 		Method ret=null;
 		try {
 			
@@ -1873,7 +1895,7 @@ private String[] constrollersToIgnore= {"org.springframework.boot.autoconfigure.
 	}
 	
 	private void handleAnnotatedApiProperty(Property property, Annotation annotation, Class propertyType) {
-		if(annotation.annotationType().getPackage().getName().equals(SwaggerDecoratorConstants.SWAGGER_ANNOTATION_PACKAGE))
+		if((!(annotation instanceof ApiParam))  && annotation.annotationType().getPackage().getName().equals(SwaggerDecoratorConstants.SWAGGER_ANNOTATION_PACKAGE))
 		{
 			String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
 			if (context.containsBean(beanName)) 
@@ -1892,7 +1914,8 @@ private String[] constrollersToIgnore= {"org.springframework.boot.autoconfigure.
 	
 			Annotation annotation, Parameter matchedOperationParameter,
 			java.lang.reflect.Parameter methodParameter) {
-		if(!annotation.annotationType().getPackage().getName().equals(SwaggerDecoratorConstants.SWAGGER_ANNOTATION_PACKAGE))
+		
+		if(!(annotation instanceof ApiParam))
 		{
 			String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
 			if (context.containsBean(beanName)) 
