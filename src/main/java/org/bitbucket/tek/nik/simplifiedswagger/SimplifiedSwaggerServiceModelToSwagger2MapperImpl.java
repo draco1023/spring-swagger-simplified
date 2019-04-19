@@ -29,6 +29,8 @@ import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ParameterizedCompone
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ParameterizedComponentKeySymbols;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ResponseContainer;
 import org.bitbucket.tek.nik.simplifiedswagger.newmodels.NewModelCreator;
+import org.bitbucket.tek.nik.simplifiedswagger.optracker.OperationTracker;
+import org.bitbucket.tek.nik.simplifiedswagger.optracker.OperationTrackerData;
 import org.bitbucket.tek.nik.simplifiedswagger.swaggerdecorators.ISwaggerDecorator;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -87,9 +89,9 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 	@Autowired
 	private ApplicationContext context;
 	
-
-
+	private OperationTracker operationTracker= new OperationTracker();
 	
+
 	@Autowired
 	private ListableBeanFactory listableBeanFactory;
 	
@@ -1331,6 +1333,8 @@ private List<String> buildList(String... args)
 		for (String methodType : methodTypes) 
 		{
 			Operation op= new Operation();
+			final OperationTrackerData operationTrackerData = new OperationTrackerData(method, op);
+			this.operationTracker.add(operationTrackerData);
 			Annotation matchedRequestMapping = methdoAndTag.getMatchedRequestMapping();
 			
 			op.setTags(buildList(methdoAndTag.getTag().getName()));
@@ -1419,10 +1423,15 @@ private List<String> buildList(String... args)
 			
 			op.setResponses(responses);
 			Boolean hidden=(Boolean) op.getVendorExtensions().get("hidden");
-			if(hidden==null || (!hidden.booleanValue()))
+			if(hidden!=null && hidden.booleanValue())
+			{
+				operationTrackerData.setHiddenOperation(true);
+			}
+			else
 			{
 				path.set(methodType, op);
 			}
+			
 			
 		}
 		
