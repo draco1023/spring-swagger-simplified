@@ -161,7 +161,11 @@ public class ApiModelPropertySwaggerDecorator implements ISwaggerDecorator {
 		
 		if(apiModelProperty.hidden())
 		{
-			//property.getVendorExtensions().put("hidden", true);
+			if(!property.getRequired())
+			{
+				property.getVendorExtensions().put("hidden", true);
+			}
+			
 		}
 		
 			

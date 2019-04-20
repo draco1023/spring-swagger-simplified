@@ -297,10 +297,13 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 			Path path = paths.get(pathKey);
 			List<Operation> operations = path.getOperations();
 			for (Operation operation : operations) {
+				final OperationTrackerData operationTrackerData = this.operationTracker.get(operation);
+				final ApiParam[] originalMethodApiParams = operationTrackerData.getApiParams();
 				List<Parameter> opParameters = operation.getParameters();
 				for (int i = 0; i < opParameters.size(); i++) 
 				{
 					Parameter parameter=opParameters.get(i);
+					ApiParam originalMethodApiParam=originalMethodApiParams[i];
 					
 					if(parameter instanceof BodyParameter)
 					{
@@ -308,7 +311,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 						Boolean needsResolving=(Boolean) tempBodyParameter.getVendorExtensions().get("toresolve");
 						if(needsResolving!=null && needsResolving.booleanValue())
 						{
-							List<Parameter> resolvedParmeters = expandTempBodyParameters(opParameters, 
+							List<Parameter> resolvedParmeters = expandTempBodyParameters(originalMethodApiParam, 
 									tempBodyParameter, definitions);
 							opParameters.remove(i);
 							
@@ -320,7 +323,28 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 					}
 					else
 					{
-						describeParameter(parameter);
+						if(originalMethodApiParam!=null)
+						{
+							parameter.setDescription(originalMethodApiParam.value());
+							parameter.setAccess(originalMethodApiParam.access());
+							parameter.setReadOnly(originalMethodApiParam.readOnly());
+							//
+							//finish this properly
+							//
+							
+							originalMethodApiParam.allowableValues();
+							originalMethodApiParam.allowEmptyValue();
+							originalMethodApiParam.collectionFormat();
+							originalMethodApiParam.defaultValue();
+							originalMethodApiParam.example();
+							originalMethodApiParam.examples();
+							originalMethodApiParam.format();
+							originalMethodApiParam.hidden();
+							originalMethodApiParam.required();
+							originalMethodApiParam.type();
+							
+						}
+						parameterResolver.describeParameter(parameter);
 					}
 					/*
 					 * For now because we are using only vendor extensions this will work.
@@ -336,21 +360,11 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 
 
 
-	private void describeParameter(Parameter parameter) {
-		String existingParameterDescription = parameter.getDescription();
-		existingParameterDescription=existingParameterDescription!=null?existingParameterDescription:parameter.getName();
-		Map<String, Object> vendorExtensions = parameter.getVendorExtensions();
-		StringBuilder sb= new StringBuilder();
-		sb.append(existingParameterDescription);
-		addDescriptionUsingVendorExtensions( vendorExtensions, sb);
-		//sb.append("</h6>");
-		//sb.append("</table>");
-		parameter.setDescription(sb.toString());
-	}
+	private ParameterResolver parameterResolver= new ParameterResolver(this);
 
 
 //here must add drill logic which uses .
-	private List<Parameter> expandTempBodyParameters(List<Parameter> opParameters, 
+	private List<Parameter> expandTempBodyParameters(ApiParam originalMethodApiParam, 
 			BodyParameter tempBodyParameter, Map<String, Model> definitions) {
 		
 		RefModel schema = (RefModel) tempBodyParameter.getSchema();
@@ -358,155 +372,11 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 		//makes sense to treat outermost object as required
 		//hence true
 		//if its not true each field within it is not there when the outermost object is not there
-		return buildNewResolvedParameters("", definitions, simpleRef, true);
+		return parameterResolver.buildNewResolvedParameters(new ApiParam[] {originalMethodApiParam}, "", definitions, simpleRef, true);
 	}
 
 
-private List<Parameter> buildNewResolvedParameters(String prefix, Map<String, Model> definitions, String simpleRef, boolean parentIsRequired) {
-	
-	List<Parameter> resolvedNewParmeters= new ArrayList<>();
-	
-	Class modelClazz=null;
-	Type modelClazzType = getClassDefinition(simpleRef);
-	if(simpleRef.contains(ParameterizedComponentKeySymbols.LEFT))
-	{
-		if(modelClazzType instanceof ParameterizedType)
-		{
-		ParameterizedType ParameterizedType=(java.lang.reflect.ParameterizedType) modelClazzType;
-		modelClazz = (Class) ParameterizedType.getRawType();
-		}
-	}
-	else if(modelClazzType instanceof Class)
-	{
-		modelClazz=(Class) modelClazzType;
-	}
-	
-	//we dont want to go into what we consider basic types
-	//for all the basic types we should have a mapping
-	if(BasicMappingHolder.INSTANCE.getMappedByType(modelClazz.getName())==null)
-	{
-		Model model = definitions.get(simpleRef);
-		Map<String, Property> properties = model.getProperties();
-		Set<String> keySet = properties.keySet();
-		
-		List<String> keyList=new ArrayList<>();
-		for (String key : keySet) {
-			keyList.add(key);
-		}
-		for (int i = 0; i < keyList.size(); i++) 
-		{
-			String key=keyList.get(i);
-		
-			Property property=properties.get(key);
-			ApiParam apiParamFromPrperty = getApiParamFromProperty(modelClazz, key);
-			{//just limiting the variable name space //curly can be removed without any efefct
-				
-				if(property instanceof ArrayProperty)
-				{
-					ArrayProperty arrayProperty=(ArrayProperty) property;
-					Property items = arrayProperty.getItems();
-				
-					if(items instanceof RefProperty)
-					{
-						RefProperty itemsRefProperty=(RefProperty) items;
-						List<Parameter> resolvedParmeters = buildNewResolvedParameters(prefix+key+"[0].", definitions, itemsRefProperty.getSimpleRef(), parentIsRequired && property.getRequired() );
-						//no need to remove before adding because nothing has been added yet
-						
-						resolvedNewParmeters.addAll(i, resolvedParmeters);
-						i=i+resolvedParmeters.size()-1;
-					}
-					else
-					{
-						QueryParameter queryParameter= new QueryParameter();
-						queryParameter.setName(prefix+property.getName());
-						queryParameter.setType(property.getType());
-						queryParameter.setFormat(property.getFormat());
-						queryParameter.items(items);
-						queryParameter.required(parentIsRequired && property.getRequired());
-						Map<String, Object> propertyVendorExtensions = property.getVendorExtensions();
-						Set<String> proertyVendorExtensionskeySet = propertyVendorExtensions.keySet();
-						for (String proertyVendorExtensionskey : proertyVendorExtensionskeySet) {
-							queryParameter.getVendorExtensions().put(proertyVendorExtensionskey, propertyVendorExtensions.get(proertyVendorExtensionskey));
-						}
-						describeParameter(queryParameter);
-						resolvedNewParmeters.add(queryParameter);
-						
-					}
-					
-					
-					
-					
-				}
-				else if(property instanceof RefProperty)
-				{
-					RefProperty refProperty=(RefProperty) property;
-					List<Parameter> resolvedParmeters = buildNewResolvedParameters(prefix+key+".", definitions, refProperty.getSimpleRef(), parentIsRequired && refProperty.getRequired());
-					//no need to remove before adding because nothing has been added yet
-					
-					resolvedNewParmeters.addAll(i, resolvedParmeters);
-					i=i+resolvedParmeters.size()-1;	
-				}
-				else if(!property.getType().equals("ref"))
-				{
-					QueryParameter queryParameter= new QueryParameter();
-					queryParameter.setName(prefix+property.getName());
-					queryParameter.setType(property.getType());
-					queryParameter.setFormat(property.getFormat());
-					queryParameter.required(parentIsRequired && property.getRequired());
-					Map<String, Object> propertyVendorExtensions = property.getVendorExtensions();
-					Set<String> proertyVendorExtensionskeySet = propertyVendorExtensions.keySet();
-					for (String proertyVendorExtensionskey : proertyVendorExtensionskeySet) {
-						queryParameter.getVendorExtensions().put(proertyVendorExtensionskey, propertyVendorExtensions.get(proertyVendorExtensionskey));
-					}
-					describeParameter(queryParameter);
-					resolvedNewParmeters.add(queryParameter);
-					
-					
-				}
-				else
-				{
-						throw new SimplifiedSwaggerException("unexpected see what aelse and if needed impmrove logic");
-					
-				}
-				
-				
-			}
-			
-			
-			
-		}
-		
-	
-	}
-	
-	
-	
-	return resolvedNewParmeters;
-}
-
-
-private ApiParam getApiParamFromProperty(Class modelClazz, String key) {
-	Method getter=getDeclaredGetter(modelClazz, key);
-	Field field = getFieldAfterCheckingWithGetter(modelClazz, key,  getter);
-	Class fieldMethodType = getFieldMethodType(field, getter);
-	ApiParam apiParam=null;
-	if(field!=null)
-	{
-		apiParam=field.getAnnotation(ApiParam.class);
-		
-	}
-	if(getter!=null)
-	{
-		apiParam=getter.getAnnotation(ApiParam.class);
-		
-	}
-	return apiParam;
-	
-}
-	
-	
-
-	private void removeGenricModels(Map<String, Model> definitions) {
+private void removeGenricModels(Map<String, Model> definitions) {
 		Set<String> keySet = definitions.keySet();
 		Set<String> keySetToRemove=new HashSet<>();
 		for (String key : keySet) {
@@ -855,6 +725,32 @@ private ApiParam getApiParamFromProperty(Class modelClazz, String key) {
 		
 	}
 	
+	void addDescriptionUsingVendorExtensions(
+			Map<String, Object> vendorExtensions, StringBuilder sb) {
+		
+		
+		Set<String> vendorExtensionKeySet = vendorExtensions.keySet();
+		sb.append("                              ");
+		sb.append("                              ");
+		sb.append("                              ");
+		//<h5>more description</h5>");
+		//sb.append("<table><tr><td><h6>more description</h6></td></tr>");
+		//sb.append("<h6>");
+		sb.append("<p><span style='color: green; font-size: 10pt'>");
+		for (String  vendorExtensionKey : vendorExtensionKeySet) {
+			Object object = vendorExtensions.get(vendorExtensionKey);
+			//sb.append("<tr><td><h6>");
+			
+			sb.append(vendorExtensionKey);
+			sb.append(":");
+			sb.append(object.toString());
+			sb.append(", ");
+			//sb.append("</h6></td></tr>");
+			
+		}
+		sb.append("</span></p>");
+	}
+	
 	private void transformDefinitionsUsingApi(Map<String, Model> definitions) {
 		Set<String> definitionsKeySet = definitions.keySet();
 		for (String definitionsKey : definitionsKeySet) {
@@ -989,7 +885,7 @@ private ApiParam getApiParamFromProperty(Class modelClazz, String key) {
 
 
 
-	private Field getFieldAfterCheckingWithGetter(Class modelClazz, String propertiesKey, 
+	public Field getFieldAfterCheckingWithGetter(Class modelClazz, String propertiesKey, 
 			Method getter) {
 		Field field = getDeclaredField(modelClazz, propertiesKey);
 		if(field==null && getter==null)
@@ -1049,7 +945,7 @@ private ApiParam getApiParamFromProperty(Class modelClazz, String key) {
 		return parameteerizedTypeIfFieldMethodTypeListOrSet;
 	}
 
-	private Class getFieldMethodType(Field field, Method getter) {
+	public Class getFieldMethodType(Field field, Method getter) {
 		Class fieldMethodType=null;
 		
 		if(field!=null)
@@ -1266,7 +1162,7 @@ private ApiParam getApiParamFromProperty(Class modelClazz, String key) {
 		return ret;
 	}
 	
-	private Method getDeclaredGetter(Class modelClazz, String propertyName)  {
+	public Method getDeclaredGetter(Class modelClazz, String propertyName)  {
 		
 		Method ret=null;
 		try {
@@ -1292,7 +1188,7 @@ private ApiParam getApiParamFromProperty(Class modelClazz, String key) {
 	}
 
 
-	private Type getClassDefinition(String definitionsKey)  {
+	public Type getClassDefinition(String definitionsKey)  {
 		try {
 			
 			Type ret=null;
@@ -1441,31 +1337,7 @@ private List<String> buildList(String... args)
 	}
 
 
-	private void addDescriptionUsingVendorExtensions(
-			Map<String, Object> vendorExtensions, StringBuilder sb) {
-		
-		
-		Set<String> vendorExtensionKeySet = vendorExtensions.keySet();
-		sb.append("                              ");
-		sb.append("                              ");
-		sb.append("                              ");
-		//<h5>more description</h5>");
-		//sb.append("<table><tr><td><h6>more description</h6></td></tr>");
-		//sb.append("<h6>");
-		sb.append("<p><span style='color: green; font-size: 10pt'>");
-		for (String  vendorExtensionKey : vendorExtensionKeySet) {
-			Object object = vendorExtensions.get(vendorExtensionKey);
-			//sb.append("<tr><td><h6>");
-			
-			sb.append(vendorExtensionKey);
-			sb.append(":");
-			sb.append(object.toString());
-			sb.append(", ");
-			//sb.append("</h6></td></tr>");
-			
-		}
-		sb.append("</span></p>");
-	}
+	
 
 	private void addResponse(Map<String, Response> responses, HttpStatus httpStatus) {
 		Response response= new Response();
