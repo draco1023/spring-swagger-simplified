@@ -67,6 +67,7 @@ import io.swagger.models.SecurityRequirement;
 import io.swagger.models.Swagger;
 import io.swagger.models.Tag;
 import io.swagger.models.auth.SecuritySchemeDefinition;
+import io.swagger.models.parameters.AbstractSerializableParameter;
 import io.swagger.models.parameters.BodyParameter;
 import io.swagger.models.parameters.CookieParameter;
 import io.swagger.models.parameters.FormParameter;
@@ -148,6 +149,8 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 			adjustExamples(definitions);
 			
 			expandResolvableParameters(paths, definitions);
+			removeHiddentParameters(paths, definitions);
+			this.operationTracker.cleanup();
 			transformDefinitionsUsingApi(definitions);
 			
 			
@@ -166,6 +169,9 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 		
 		
 	}
+
+
+	
 
 
 	/**
@@ -328,18 +334,33 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 							parameter.setDescription(originalMethodApiParam.value());
 							parameter.setAccess(originalMethodApiParam.access());
 							parameter.setReadOnly(originalMethodApiParam.readOnly());
+							if(parameter instanceof AbstractSerializableParameter)
+							{
+								AbstractSerializableParameter asp=(AbstractSerializableParameter) parameter;
+								asp.setDefaultValue(originalMethodApiParam.defaultValue());
+								asp.setExample(originalMethodApiParam.example());
+								setEnumValues(asp, originalMethodApiParam);
+							}
+							
+							if(!parameter.getRequired())
+							{
+								//if we have it set as required we cant allow it to be hidden
+								parameter.getVendorExtensions().put("hidden", true);
+							}
 							//
 							//finish this properly
+							
+							
 							//
 							
-							originalMethodApiParam.allowableValues();
+							
 							originalMethodApiParam.allowEmptyValue();
 							originalMethodApiParam.collectionFormat();
-							originalMethodApiParam.defaultValue();
-							originalMethodApiParam.example();
+							
+							
 							originalMethodApiParam.examples();
 							originalMethodApiParam.format();
-							originalMethodApiParam.hidden();
+							
 							originalMethodApiParam.required();
 							originalMethodApiParam.type();
 							
@@ -357,6 +378,69 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 			}
 		}
 	}
+	
+	private void removeHiddentParameters(Map<String, Path> paths, Map<String, Model> definitions) {
+		Set<String> pathKeys = paths.keySet();
+		for (String pathKey : pathKeys) {
+			Path path = paths.get(pathKey);
+			List<Operation> operations = path.getOperations();
+			for (Operation operation : operations) {
+				final OperationTrackerData operationTrackerData = this.operationTracker.get(operation);
+				final ApiParam[] originalMethodApiParams = operationTrackerData.getApiParams();
+				List<Parameter> opParameters = operation.getParameters();
+				for (int i = 0; i < opParameters.size(); i++) 
+				{
+					Parameter parameter=opParameters.get(i);
+					Boolean hidden=(Boolean) parameter.getVendorExtensions().get("hidden");
+					if(hidden!=null && hidden.booleanValue())
+					{
+						opParameters.remove(i);
+						i--;
+					}
+				}
+			}
+		}
+		
+	}
+
+
+
+	private void setEnumValues(AbstractSerializableParameter asp, ApiParam apiParam) {
+		
+		
+		final List existingEnum = asp.getEnum();
+		
+		//dont change from already set sensibles
+		if(existingEnum==null|| existingEnum.size()==0)
+		{
+			String allowableValues = apiParam.allowableValues();
+			if(allowableValues!=null)
+			{
+				allowableValues=allowableValues.trim();
+				if(allowableValues.length()>0)
+				{
+					//range concept is not being used by original spring fox
+					String[] enumValues = allowableValues.split(",");
+					
+					List<String> newEnum = new ArrayList<>();
+					for (String string : enumValues) {
+						if(string!=null )
+						{
+							string=string.trim();
+							if(string.length()>0)
+							{
+								newEnum.add(string);
+							}
+						}
+					}
+					asp.setEnum(newEnum);
+				}
+			}
+		}
+		
+	}
+
+
 
 
 

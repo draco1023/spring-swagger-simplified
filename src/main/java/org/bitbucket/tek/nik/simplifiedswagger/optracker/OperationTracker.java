@@ -15,7 +15,11 @@ import io.swagger.models.Operation;
 
 public class OperationTracker {
 	
-	
+	public void cleanup()
+	{
+		dataList.clear();
+		dataList=null;
+	}
 	private List<OperationTrackerData> dataList= new ArrayList<>();
 	public void add(OperationTrackerData data)
 	{

@@ -189,39 +189,7 @@ public class ParameterResolver {
 			queryParameter.setReadOnly(apiParam.readOnly());
 			queryParameter.setDefaultValue(apiParam.defaultValue());
 			
-			if(property instanceof StringProperty)
-			{
-				StringProperty stringProperty=(io.swagger.models.properties.StringProperty) property;
-				List<String> existingEnum = stringProperty.getEnum();
-				//dont change from already set sensibles
-				if(existingEnum==null|| existingEnum.size()==0)
-				{
-					String allowableValues = apiParam.allowableValues();
-					if(allowableValues!=null)
-					{
-						allowableValues=allowableValues.trim();
-						if(allowableValues.length()>0)
-						{
-							//range concept is not being used by original spring fox
-							String[] enumValues = allowableValues.split(",");
-							
-							List<String> newEnum = new ArrayList<>();
-							for (String string : enumValues) {
-								if(string!=null )
-								{
-									string=string.trim();
-									if(string.length()>0)
-									{
-										newEnum.add(string);
-									}
-								}
-							}
-							queryParameter.setEnum(newEnum);
-						}
-					}
-				}
-
-			}
+			setEnumValues(queryParameter, apiParam, property);
 			if(!queryParameter.getRequired())
 			{
 				//if we have it set as required we cant allow it to be hidden
@@ -248,6 +216,42 @@ public class ParameterResolver {
 		
 		
 		
+	}
+
+	private void setEnumValues(QueryParameter queryParameter, ApiParam apiParam, Property property) {
+		if(property instanceof StringProperty)
+		{
+			StringProperty stringProperty=(io.swagger.models.properties.StringProperty) property;
+			List<String> existingEnum = stringProperty.getEnum();
+			//dont change from already set sensibles
+			if(existingEnum==null|| existingEnum.size()==0)
+			{
+				String allowableValues = apiParam.allowableValues();
+				if(allowableValues!=null)
+				{
+					allowableValues=allowableValues.trim();
+					if(allowableValues.length()>0)
+					{
+						//range concept is not being used by original spring fox
+						String[] enumValues = allowableValues.split(",");
+						
+						List<String> newEnum = new ArrayList<>();
+						for (String string : enumValues) {
+							if(string!=null )
+							{
+								string=string.trim();
+								if(string.length()>0)
+								{
+									newEnum.add(string);
+								}
+							}
+						}
+						queryParameter.setEnum(newEnum);
+					}
+				}
+			}
+
+		}
 	}
 	
 	void describeParameter(Parameter parameter) {
