@@ -138,7 +138,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 				
 				List<MethodAndTag> list = pathToMethodListMap.get(key);
 				for (MethodAndTag methdoAndTag : list) {
-					 buildOperation(path, methdoAndTag, key);
+					 buildOperation(path, methdoAndTag, key, definitions);
 					
 					
 				}
@@ -1305,7 +1305,7 @@ private List<String> buildList(String... args)
 	return ret;
 	
 }
-	private void buildOperation(Path path, MethodAndTag methdoAndTag, String key) 
+	private void buildOperation(Path path, MethodAndTag methdoAndTag, String key, Map<String, Model> definitions) 
 	{
 		
 		Method method = methdoAndTag.getMethod();
@@ -1348,7 +1348,7 @@ private List<String> buildList(String... args)
 				Type genericParameterType = genericParameterTypes[i];
 				
 				
-				Parameter param = buildOpParameter(parameter, genericParameterType);
+				Parameter param = buildOpParameter(parameter, genericParameterType, definitions);
 				if(param==null)
 				{
 					//then paramter is not a basic type
@@ -1365,8 +1365,16 @@ private List<String> buildList(String... args)
 					ModelOrRefBuilder bodyParameterBuilder= new ModelOrRefBuilder(genericParameterType, parameterContainer, newModelCreator);
 					OuterContainer built = bodyParameterBuilder.build();
 					BodyParameter bodyParameter = parameterContainer.getBodyParameter();
+					bodyParameter.setRequired(true);
+					bodyParameter.setName(parameter.getName());
 					bodyParameter.getVendorExtensions().put("toresolve", true);
 					param=bodyParameter;
+					final RefModel schema = (RefModel) bodyParameter.getSchema();
+					final Model found = definitions.get(schema.getSimpleRef());
+					if(found==null)//this can happen//not my code
+					{
+						this.newModelCreator.addIfParemeterizedType(genericParameterType, false);
+					}
 					opParams.add(bodyParameter);
 				}
 					
@@ -1488,7 +1496,7 @@ private List<String> buildList(String... args)
 
 */
 	private Parameter buildOpParameter(java.lang.reflect.Parameter parameter,
-			Type genericParameterType) {
+			Type genericParameterType, Map<String, Model> definitions) {
 		Annotation[] annotations = parameter.getDeclaredAnnotations();
 		
 		
@@ -1507,6 +1515,8 @@ private List<String> buildList(String... args)
 			OuterContainer built = bodyParameterBuilder.build();
 			BodyParameter bodyParameter = parameterContainer.getBodyParameter();
 			param=bodyParameter;
+			
+		
 			
 			
 		}
@@ -1572,6 +1582,10 @@ private List<String> buildList(String... args)
 					{
 						isBasic=true;
 					}
+				}
+				else
+				{
+					System.out.println("here with "+clazz.getName());
 				}
 			}
 			if(!isBasic)

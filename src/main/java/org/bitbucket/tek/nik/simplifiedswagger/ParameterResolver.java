@@ -53,76 +53,84 @@ public class ParameterResolver {
 		if(BasicMappingHolder.INSTANCE.getMappedByType(modelClazz.getName())==null)
 		{
 			Model model = definitions.get(simpleRef);
-			Map<String, Property> properties = model.getProperties();
-			Set<String> keySet = properties.keySet();
-			
-			List<String> keyList=new ArrayList<>();
-			for (String key : keySet) {
-				keyList.add(key);
-			}
-			for (int i = 0; i < keyList.size(); i++) 
+			if(model!=null)
 			{
-				String key=keyList.get(i);
-			
-				Property property=properties.get(key);
-				ApiParam apiParamFromPrperty = getApiParamFromProperty(modelClazz, key);
-				ApiParam[] apiParams1= new ApiParam[apiParams.length+1];
-				System.arraycopy(apiParams, 0, apiParams1, 0, apiParams.length);
-				apiParams1[apiParams1.length-1]=apiParamFromPrperty;
-				apiParams=apiParams1;
+				Map<String, Property> properties = model.getProperties();
+				Set<String> keySet = properties.keySet();
 				
-				{//just limiting the variable name space //curly can be removed without any efefct
+				List<String> keyList=new ArrayList<>();
+				for (String key : keySet) {
+					keyList.add(key);
+				}
+				for (int i = 0; i < keyList.size(); i++) 
+				{
+					String key=keyList.get(i);
+				
+					Property property=properties.get(key);
+					ApiParam apiParamFromPrperty = getApiParamFromProperty(modelClazz, key);
+					ApiParam[] apiParams1= new ApiParam[apiParams.length+1];
+					System.arraycopy(apiParams, 0, apiParams1, 0, apiParams.length);
+					apiParams1[apiParams1.length-1]=apiParamFromPrperty;
+					apiParams=apiParams1;
 					
-					if(property instanceof ArrayProperty)
-					{
-						ArrayProperty arrayProperty=(ArrayProperty) property;
-						Property items = arrayProperty.getItems();
-					
-						if(items instanceof RefProperty)
+					{//just limiting the variable name space //curly can be removed without any efefct
+						
+						if(property instanceof ArrayProperty)
 						{
-							RefProperty itemsRefProperty=(RefProperty) items;
-							List<Parameter> resolvedParmeters = buildNewResolvedParameters(apiParams, prefix+key+"[0].", definitions, itemsRefProperty.getSimpleRef(), parentIsRequired && property.getRequired() );
+							ArrayProperty arrayProperty=(ArrayProperty) property;
+							Property items = arrayProperty.getItems();
+						
+							if(items instanceof RefProperty)
+							{
+								RefProperty itemsRefProperty=(RefProperty) items;
+								List<Parameter> resolvedParmeters = buildNewResolvedParameters(apiParams, prefix+key+"[0].", definitions, itemsRefProperty.getSimpleRef(), parentIsRequired && property.getRequired() );
+								//no need to remove before adding because nothing has been added yet
+								
+								resolvedNewParmeters.addAll(resolvedParmeters);
+								//i=i+resolvedParmeters.size()-1;
+							}
+							else
+							{
+								buildQueryParam(apiParams, prefix, parentIsRequired, resolvedNewParmeters, property, items);
+								
+								
+							}
+							
+							
+							
+							
+						}
+						else if(property instanceof RefProperty)
+						{
+							RefProperty refProperty=(RefProperty) property;
+							List<Parameter> resolvedParmeters = buildNewResolvedParameters(apiParams, prefix+key+".", definitions, refProperty.getSimpleRef(), parentIsRequired && refProperty.getRequired());
 							//no need to remove before adding because nothing has been added yet
 							
-							resolvedNewParmeters.addAll(i, resolvedParmeters);
-							i=i+resolvedParmeters.size()-1;
+							resolvedNewParmeters.addAll(resolvedParmeters);
+							//i=i+resolvedParmeters.size()-1;	
+						}
+						else if(!property.getType().equals("ref"))
+						{
+							buildQueryParam(apiParams, prefix, parentIsRequired, resolvedNewParmeters, property, null);
 						}
 						else
 						{
-							buildQueryParam(apiParams, prefix, parentIsRequired, resolvedNewParmeters, property, items);
-							
+								throw new SimplifiedSwaggerException("unexpected see what aelse and if needed impmrove logic");
 							
 						}
 						
 						
-						
-						
 					}
-					else if(property instanceof RefProperty)
-					{
-						RefProperty refProperty=(RefProperty) property;
-						List<Parameter> resolvedParmeters = buildNewResolvedParameters(apiParams, prefix+key+".", definitions, refProperty.getSimpleRef(), parentIsRequired && refProperty.getRequired());
-						//no need to remove before adding because nothing has been added yet
-						
-						resolvedNewParmeters.addAll(i, resolvedParmeters);
-						i=i+resolvedParmeters.size()-1;	
-					}
-					else if(!property.getType().equals("ref"))
-					{
-						buildQueryParam(apiParams, prefix, parentIsRequired, resolvedNewParmeters, property, null);
-					}
-					else
-					{
-							throw new SimplifiedSwaggerException("unexpected see what aelse and if needed impmrove logic");
-						
-					}
+					
 					
 					
 				}
-				
-				
-				
 			}
+			else
+			{
+				//throw new SimplifiedSwaggerException("why is model null for "+simpleRef );
+			}
+
 			
 		
 		}

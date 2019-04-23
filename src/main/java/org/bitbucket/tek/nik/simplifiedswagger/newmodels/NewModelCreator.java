@@ -1,6 +1,7 @@
 package org.bitbucket.tek.nik.simplifiedswagger.newmodels;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -40,6 +41,7 @@ public class NewModelCreator {
 	
 	private final Map<String, Model> definitions;
 	private final ParameterizedPropertyHandler parameterizedPropertyHandler;
+	private final GenericArrayPropertyHandler genericArrayPropertyHandler;
 	private final NonParameterizedPropertyHandler nonParameterizedPropertyHandler ;
 	
 	public NewModelCreator(Map<String, Model> definitions) {
@@ -48,6 +50,7 @@ public class NewModelCreator {
 		
 		this.parameterizedPropertyHandler = new ParameterizedPropertyHandler(definitions, this);
 		this.nonParameterizedPropertyHandler = new NonParameterizedPropertyHandler(definitions,  this);
+		this.genericArrayPropertyHandler= new GenericArrayPropertyHandler(definitions, this);
 	}
 
 	private int counter=0;
@@ -323,6 +326,10 @@ private void addNonGenericModels(Map<String, Model> definitions) {
 				 {
 					 propertiesMap.put(field.getName(),genericType);
 				 }
+				else if(genericType instanceof GenericArrayType)
+				 {
+					 propertiesMap.put(field.getName(),genericType);
+				 }
 				else
 				{
 					throw new SimplifiedSwaggerException("handle "+genericType.getClass().getName()+" field="+field.getName()+", in "+key);
@@ -343,6 +350,10 @@ private void addNonGenericModels(Map<String, Model> definitions) {
 			if(type instanceof ParameterizedType)
 			{
 				handleParameterizedProperty(definitions, modelProperties, key2, (ParameterizedType)type, null);
+			}
+			else if(type instanceof GenericArrayType)
+			{
+				handleGenericArrayProperty(definitions, modelProperties, key2, (GenericArrayType)type, null);
 			}
 			else if(type instanceof WildcardType)
 			{
@@ -421,6 +432,13 @@ private void handleParameterizedProperty(Map<String, Model> definitions, HashMap
 		String propertyName, ParameterizedType type, Map<String, Type> typeVariableToActualTypeMapFromParentClass ) {
 	
 	parameterizedPropertyHandler.handleParameterizedProperty(modelProperties, propertyName, type,
+			typeVariableToActualTypeMapFromParentClass);
+
+}
+private void handleGenericArrayProperty(Map<String, Model> definitions, HashMap<String, Property> modelProperties,
+		String propertyName, GenericArrayType type, Map<String, Type> typeVariableToActualTypeMapFromParentClass ) {
+	
+	genericArrayPropertyHandler.handleGenericArrayProperty(modelProperties, propertyName, type,
 			typeVariableToActualTypeMapFromParentClass);
 
 }

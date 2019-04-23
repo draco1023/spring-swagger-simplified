@@ -18,7 +18,7 @@ public class OperationTracker {
 	public void cleanup()
 	{
 		dataList.clear();
-		dataList=null;
+		//dataList=null;
 	}
 	private List<OperationTrackerData> dataList= new ArrayList<>();
 	public void add(OperationTrackerData data)
