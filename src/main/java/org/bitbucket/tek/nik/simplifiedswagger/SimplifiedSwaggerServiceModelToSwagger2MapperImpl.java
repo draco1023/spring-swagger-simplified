@@ -1585,7 +1585,9 @@ private List<String> buildList(String... args)
 				}
 				else
 				{
-					System.out.println("here with "+clazz.getName());
+					//ignore
+					//must be a complext type without the annoations
+					//we are checking for earlier
 				}
 			}
 			if(!isBasic)
