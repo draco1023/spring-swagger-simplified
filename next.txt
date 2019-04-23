@@ -12,6 +12,9 @@ put the counter as an extension property in each operation
 have an array where given the counter should be able to access the opration and tyhe java method
 can have a cleanup at end to remove this counetr from each operation and dismantle the array.
 
+
+NO building a list of ApiParams is not good.
+at property level use properties api param. at out level use outer.
 Test ApiParams properly
 Also must handle genericArarys in generic beans
 
