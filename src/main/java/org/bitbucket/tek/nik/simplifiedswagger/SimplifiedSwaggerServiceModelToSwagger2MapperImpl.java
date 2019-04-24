@@ -456,7 +456,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 		//makes sense to treat outermost object as required
 		//hence true
 		//if its not true each field within it is not there when the outermost object is not there
-		return parameterResolver.buildNewResolvedParameters(new ApiParam[] {originalMethodApiParam}, "", definitions, simpleRef, true);
+		return parameterResolver.buildNewResolvedParameters( "", definitions, simpleRef, true);
 	}
 
 
@@ -1371,8 +1371,9 @@ private List<String> buildList(String... args)
 					param=bodyParameter;
 					final RefModel schema = (RefModel) bodyParameter.getSchema();
 					final Model found = definitions.get(schema.getSimpleRef());
-					if(found==null)//this can happen//not my code
+					if(found==null)//this can happen if the actual object is not needed after converting to parameters
 					{
+						//TODO add a removal logic later
 						this.newModelCreator.addIfParemeterizedType(genericParameterType, false);
 					}
 					opParams.add(bodyParameter);

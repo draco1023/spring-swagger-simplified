@@ -29,7 +29,7 @@ public class ParameterResolver {
 		this.maper = maper;
 	}
 
-	List<Parameter> buildNewResolvedParameters(ApiParam[] apiParams, String prefix, Map<String, Model> definitions, String simpleRef, boolean parentIsRequired) {
+	List<Parameter> buildNewResolvedParameters(String prefix, Map<String, Model> definitions, String simpleRef, boolean parentIsRequired) {
 		
 		List<Parameter> resolvedNewParmeters= new ArrayList<>();
 		
@@ -68,10 +68,7 @@ public class ParameterResolver {
 				
 					Property property=properties.get(key);
 					ApiParam apiParamFromPrperty = getApiParamFromProperty(modelClazz, key);
-					ApiParam[] apiParams1= new ApiParam[apiParams.length+1];
-					System.arraycopy(apiParams, 0, apiParams1, 0, apiParams.length);
-					apiParams1[apiParams1.length-1]=apiParamFromPrperty;
-					apiParams=apiParams1;
+					
 					
 					{//just limiting the variable name space //curly can be removed without any efefct
 						
@@ -83,7 +80,7 @@ public class ParameterResolver {
 							if(items instanceof RefProperty)
 							{
 								RefProperty itemsRefProperty=(RefProperty) items;
-								List<Parameter> resolvedParmeters = buildNewResolvedParameters(apiParams, prefix+key+"[0].", definitions, itemsRefProperty.getSimpleRef(), parentIsRequired && property.getRequired() );
+								List<Parameter> resolvedParmeters = buildNewResolvedParameters( prefix+key+"[0].", definitions, itemsRefProperty.getSimpleRef(), parentIsRequired && property.getRequired() );
 								//no need to remove before adding because nothing has been added yet
 								
 								resolvedNewParmeters.addAll(resolvedParmeters);
@@ -91,7 +88,7 @@ public class ParameterResolver {
 							}
 							else
 							{
-								buildQueryParam(apiParams, prefix, parentIsRequired, resolvedNewParmeters, property, items);
+								buildQueryParam(apiParamFromPrperty, prefix, parentIsRequired, resolvedNewParmeters, property, items);
 								
 								
 							}
@@ -103,7 +100,7 @@ public class ParameterResolver {
 						else if(property instanceof RefProperty)
 						{
 							RefProperty refProperty=(RefProperty) property;
-							List<Parameter> resolvedParmeters = buildNewResolvedParameters(apiParams, prefix+key+".", definitions, refProperty.getSimpleRef(), parentIsRequired && refProperty.getRequired());
+							List<Parameter> resolvedParmeters = buildNewResolvedParameters( prefix+key+".", definitions, refProperty.getSimpleRef(), parentIsRequired && refProperty.getRequired());
 							//no need to remove before adding because nothing has been added yet
 							
 							resolvedNewParmeters.addAll(resolvedParmeters);
@@ -111,7 +108,7 @@ public class ParameterResolver {
 						}
 						else if(!property.getType().equals("ref"))
 						{
-							buildQueryParam(apiParams, prefix, parentIsRequired, resolvedNewParmeters, property, null);
+							buildQueryParam(apiParamFromPrperty, prefix, parentIsRequired, resolvedNewParmeters, property, null);
 						}
 						else
 						{
@@ -128,7 +125,7 @@ public class ParameterResolver {
 			}
 			else
 			{
-				//throw new SimplifiedSwaggerException("why is model null for "+simpleRef );
+				throw new SimplifiedSwaggerException("why is model null for "+simpleRef );
 			}
 
 			
@@ -140,7 +137,7 @@ public class ParameterResolver {
 		return resolvedNewParmeters;
 	}
 
-	private void buildQueryParam(ApiParam[] apiParams, String prefix, boolean parentIsRequired,
+	private void buildQueryParam(ApiParam apiParam, String prefix, boolean parentIsRequired,
 			List<Parameter> resolvedNewParmeters, Property property, Property items) {
 		QueryParameter queryParameter= new QueryParameter();
 		queryParameter.setName(prefix+property.getName());
@@ -159,7 +156,7 @@ public class ParameterResolver {
 			queryParameter.getVendorExtensions().put(proertyVendorExtensionskey, propertyVendorExtensions.get(proertyVendorExtensionskey));
 		}
 		
-		for (ApiParam apiParam : apiParams) 
+		if(apiParam!=null)
 		{
 			applyApiParamOnQueryParam(queryParameter, apiParam, property, items!=null);
 		}
