@@ -2,6 +2,9 @@ package org.bitbucket.tek.nik.simplifiedswagger.optracker;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.util.List;
+
+import org.springframework.http.MediaType;
 
 import io.swagger.annotations.ApiParam;
 import io.swagger.models.Operation;
@@ -13,14 +16,29 @@ import io.swagger.models.Operation;
 
 public class OperationTrackerData {
 	
-	private Method method;
-	private Operation operation;
+	private final  Method method;
+	private final Operation operation;
 	private boolean hiddenOperation;
+	private final String methodType;
 	
-	public OperationTrackerData(Method method, Operation operation) {
+	public boolean preferQueryToFormParameter() {
+		boolean useQuery=true;
+		if(operation.getConsumes().contains(MediaType.APPLICATION_FORM_URLENCODED_VALUE) && (!methodType.equals("delete")))
+		{
+			useQuery=false;
+		}
+		return useQuery;
+	}
+	
+	public String getMethodType() {
+		return methodType;
+	}
+
+	public OperationTrackerData(Method method, Operation operation, String methodType) {
 		super();
 		this.method = method;
 		this.operation = operation;
+		this.methodType = methodType;
 		
 		
 	}

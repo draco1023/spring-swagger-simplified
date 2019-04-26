@@ -10,9 +10,12 @@ import java.util.Set;
 
 import org.bitbucket.tek.nik.simplifiedswagger.exception.SimplifiedSwaggerException;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ParameterizedComponentKeySymbols;
+import org.springframework.http.MediaType;
 
 import io.swagger.annotations.ApiParam;
 import io.swagger.models.Model;
+import io.swagger.models.parameters.AbstractSerializableParameter;
+import io.swagger.models.parameters.FormParameter;
 import io.swagger.models.parameters.Parameter;
 import io.swagger.models.parameters.QueryParameter;
 import io.swagger.models.properties.ArrayProperty;
@@ -29,7 +32,7 @@ public class ParameterResolver {
 		this.maper = maper;
 	}
 
-	List<Parameter> buildNewResolvedParameters(String prefix, Map<String, Model> definitions, String simpleRef, boolean parentIsRequired) {
+	List<Parameter> buildNewResolvedParameters(String prefix, Map<String, Model> definitions, String simpleRef, boolean parentIsRequired, boolean preferQueryToFormParam) {
 		
 		List<Parameter> resolvedNewParmeters= new ArrayList<>();
 		
@@ -80,7 +83,7 @@ public class ParameterResolver {
 							if(items instanceof RefProperty)
 							{
 								RefProperty itemsRefProperty=(RefProperty) items;
-								List<Parameter> resolvedParmeters = buildNewResolvedParameters( prefix+key+"[0].", definitions, itemsRefProperty.getSimpleRef(), parentIsRequired && property.getRequired() );
+								List<Parameter> resolvedParmeters = buildNewResolvedParameters( prefix+key+"[0].", definitions, itemsRefProperty.getSimpleRef(), parentIsRequired && property.getRequired(), preferQueryToFormParam );
 								//no need to remove before adding because nothing has been added yet
 								
 								resolvedNewParmeters.addAll(resolvedParmeters);
@@ -88,7 +91,7 @@ public class ParameterResolver {
 							}
 							else
 							{
-								buildQueryParam(apiParamFromPrperty, prefix, parentIsRequired, resolvedNewParmeters, property, items);
+								buildQueryParam(apiParamFromPrperty, prefix, parentIsRequired, resolvedNewParmeters, property, items, preferQueryToFormParam);
 								
 								
 							}
@@ -100,7 +103,7 @@ public class ParameterResolver {
 						else if(property instanceof RefProperty)
 						{
 							RefProperty refProperty=(RefProperty) property;
-							List<Parameter> resolvedParmeters = buildNewResolvedParameters( prefix+key+".", definitions, refProperty.getSimpleRef(), parentIsRequired && refProperty.getRequired());
+							List<Parameter> resolvedParmeters = buildNewResolvedParameters( prefix+key+".", definitions, refProperty.getSimpleRef(), parentIsRequired && refProperty.getRequired(), preferQueryToFormParam);
 							//no need to remove before adding because nothing has been added yet
 							
 							resolvedNewParmeters.addAll(resolvedParmeters);
@@ -108,7 +111,7 @@ public class ParameterResolver {
 						}
 						else if(!property.getType().equals("ref"))
 						{
-							buildQueryParam(apiParamFromPrperty, prefix, parentIsRequired, resolvedNewParmeters, property, null);
+							buildQueryParam(apiParamFromPrperty, prefix, parentIsRequired, resolvedNewParmeters, property, null, true);
 						}
 						else
 						{
@@ -137,9 +140,27 @@ public class ParameterResolver {
 		return resolvedNewParmeters;
 	}
 
+	
+	
+	
+	public AbstractSerializableParameter buildQueryOrFormParameter(boolean preferQueryToFormParam) {
+		AbstractSerializableParameter param;
+		if(preferQueryToFormParam)
+		{
+			param= new QueryParameter();
+		}
+		else
+		{
+			FormParameter formParameter=new FormParameter();
+			formParameter.setIn("formData");
+			param=formParameter;
+		}
+		return param;
+	}
 	private void buildQueryParam(ApiParam apiParam, String prefix, boolean parentIsRequired,
-			List<Parameter> resolvedNewParmeters, Property property, Property items) {
-		QueryParameter queryParameter= new QueryParameter();
+			List<Parameter> resolvedNewParmeters, Property property, Property items, boolean preferQueryToFormParam) {
+		
+		AbstractSerializableParameter queryParameter= buildQueryOrFormParameter(preferQueryToFormParam);
 		queryParameter.setName(prefix+property.getName());
 		queryParameter.setType(property.getType());
 		queryParameter.setFormat(property.getFormat());
@@ -170,7 +191,7 @@ public class ParameterResolver {
 		
 	}
 
-	private void applyApiParamOnQueryParam(QueryParameter queryParameter, ApiParam apiParam, Property property, boolean forArray) 
+	private void applyApiParamOnQueryParam(AbstractSerializableParameter queryParameter, ApiParam apiParam, Property property, boolean forArray) 
 	
 	{
 		if(apiParam!=null)
@@ -223,7 +244,7 @@ public class ParameterResolver {
 		
 	}
 
-	private void setEnumValues(QueryParameter queryParameter, ApiParam apiParam, Property property) {
+	private void setEnumValues(AbstractSerializableParameter queryParameter, ApiParam apiParam, Property property) {
 		if(property instanceof StringProperty)
 		{
 			StringProperty stringProperty=(io.swagger.models.properties.StringProperty) property;

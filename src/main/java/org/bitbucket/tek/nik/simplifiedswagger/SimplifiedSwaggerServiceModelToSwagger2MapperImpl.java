@@ -37,6 +37,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.ClassUtils;
 import org.springframework.web.bind.annotation.CookieValue;
@@ -306,6 +307,8 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 				final OperationTrackerData operationTrackerData = this.operationTracker.get(operation);
 				final ApiParam[] originalMethodApiParams = operationTrackerData.getApiParams();
 				List<Parameter> opParameters = operation.getParameters();
+				boolean preferQueryToFormParameter=operationTrackerData.preferQueryToFormParameter();
+				
 				for (int i = 0; i < opParameters.size(); i++) 
 				{
 					Parameter parameter=opParameters.get(i);
@@ -318,7 +321,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 						if(needsResolving!=null && needsResolving.booleanValue())
 						{
 							List<Parameter> resolvedParmeters = expandTempBodyParameters(originalMethodApiParam, 
-									tempBodyParameter, definitions);
+									tempBodyParameter, definitions, preferQueryToFormParameter);
 							opParameters.remove(i);
 							
 							opParameters.addAll(i, resolvedParmeters);
@@ -378,6 +381,12 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 			}
 		}
 	}
+
+
+
+
+
+
 	
 	private void removeHiddentParameters(Map<String, Path> paths, Map<String, Model> definitions) {
 		Set<String> pathKeys = paths.keySet();
@@ -449,14 +458,14 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 
 //here must add drill logic which uses .
 	private List<Parameter> expandTempBodyParameters(ApiParam originalMethodApiParam, 
-			BodyParameter tempBodyParameter, Map<String, Model> definitions) {
+			BodyParameter tempBodyParameter, Map<String, Model> definitions, boolean preferQueryToFormParam) {
 		
 		RefModel schema = (RefModel) tempBodyParameter.getSchema();
 		String simpleRef = schema.getSimpleRef();
 		//makes sense to treat outermost object as required
 		//hence true
 		//if its not true each field within it is not there when the outermost object is not there
-		return parameterResolver.buildNewResolvedParameters( "", definitions, simpleRef, true);
+		return parameterResolver.buildNewResolvedParameters( "", definitions, simpleRef, true, preferQueryToFormParam);
 	}
 
 
@@ -1313,7 +1322,7 @@ private List<String> buildList(String... args)
 		for (String methodType : methodTypes) 
 		{
 			Operation op= new Operation();
-			final OperationTrackerData operationTrackerData = new OperationTrackerData(method, op);
+			final OperationTrackerData operationTrackerData = new OperationTrackerData(method, op, methodType);
 			this.operationTracker.add(operationTrackerData);
 			Annotation matchedRequestMapping = methdoAndTag.getMatchedRequestMapping();
 			
@@ -1338,7 +1347,7 @@ private List<String> buildList(String... args)
 			{
 				op.setProduces(buildList("*/*"));
 			}
-			
+			boolean preferQueryToFormParameter=operationTrackerData.preferQueryToFormParameter();
 			java.lang.reflect.Parameter[] parameters = method.getParameters();
 			
 			Type[] genericParameterTypes = method.getGenericParameterTypes();
@@ -1348,7 +1357,7 @@ private List<String> buildList(String... args)
 				Type genericParameterType = genericParameterTypes[i];
 				
 				
-				Parameter param = buildOpParameter(parameter, genericParameterType, definitions);
+				Parameter param = buildOpParameter(parameter, genericParameterType, definitions, preferQueryToFormParameter);
 				if(param==null)
 				{
 					//then paramter is not a basic type
@@ -1497,7 +1506,7 @@ private List<String> buildList(String... args)
 
 */
 	private Parameter buildOpParameter(java.lang.reflect.Parameter parameter,
-			Type genericParameterType, Map<String, Model> definitions) {
+			Type genericParameterType, Map<String, Model> definitions, boolean preferQueryToFormParam) {
 		Annotation[] annotations = parameter.getDeclaredAnnotations();
 		
 		
@@ -1523,8 +1532,9 @@ private List<String> buildList(String... args)
 		}
 		else if(findAnnotations(parameter, RequestParam.class))
 		{
+			param = this.parameterResolver.buildQueryOrFormParameter(preferQueryToFormParam);
 			
-			param= new QueryParameter();
+			
 		}
 		else if(findAnnotations(parameter, RequestHeader.class))
 		{
@@ -1601,7 +1611,7 @@ private List<String> buildList(String... args)
 			}
 			if(isBasic)
 			{
-				param= new QueryParameter();
+				param = this.parameterResolver.buildQueryOrFormParameter(preferQueryToFormParam);
 			}
 			
 		}
@@ -1624,6 +1634,12 @@ private List<String> buildList(String... args)
 		
 		return param;
 	}
+
+
+
+
+
+	
 
 
 
