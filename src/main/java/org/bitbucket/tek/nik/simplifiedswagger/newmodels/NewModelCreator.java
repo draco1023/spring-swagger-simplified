@@ -449,6 +449,8 @@ private void handleGenericArrayProperty(Map<String, Model> definitions, HashMap<
 			typeVariableToActualTypeMapFromParentClass);
 
 }
+
+
 /*
  * unused code will remove later.
  * commenting out for now
@@ -517,7 +519,7 @@ private void addGenericModels(Map<String, Model> definitions) {
 		
 		Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
 		for (Type type2 : actualTypeArguments) {
-			//registerTheTypeIfNeeded(type2);
+			
 			
 		}
 		if(rawType instanceof Class)
@@ -648,10 +650,18 @@ private void addGenericModels(Map<String, Model> definitions) {
 				{
 					throw new SimplifiedSwaggerException("unexpected if for property "+key2+ " in generic model "+key+" was actual of null type");
 				}
+				if(type instanceof TypeVariable)
+				{
+					throw new SimplifiedSwaggerException("unexpected if for property "+key2+ " in generic model "+key+" was actual of TypeVariable type");
+					//TypeVariable tv=(TypeVariable) type;
+					//type = typeVariableToActualTypeMap.get(tv.getName());
+				}
 				if(type instanceof ParameterizedType)
 				{
 					ParameterizedType parameterizedType1=(ParameterizedType) type;
 					
+					parameterizedType1 = parametrizedTypeWithResolvedActualArguments(typeVariableToActualTypeMap,
+							parameterizedType1);
 					handleParameterizedProperty(definitions, modelProperties, key2, parameterizedType1, typeVariableToActualTypeMap);
 				}
 				else if(type instanceof WildcardType)
@@ -691,10 +701,29 @@ private void addGenericModels(Map<String, Model> definitions) {
 				}
 				else if(type instanceof GenericArrayType)
 				{
-					handleGenericArrayProperty(definitions, modelProperties, key2, (GenericArrayType)type, typeVariableToActualTypeMap);
+					GenericArrayType genericArrayType=(GenericArrayType) type;
+					final Type genericComponentType = genericArrayType.getGenericComponentType();
+				
+					if(genericComponentType instanceof ParameterizedType)
+					{
+						ParameterizedType parameterizedType1=(ParameterizedType)genericComponentType;
+						ParameterizedType parametrizedTypeWithResolvedActualArguments = parametrizedTypeWithResolvedActualArguments(typeVariableToActualTypeMap,
+								parameterizedType1);
+						if(parameterizedType1 != parametrizedTypeWithResolvedActualArguments)
+						{
+							genericArrayType=sun.reflect.generics.reflectiveObjects.GenericArrayTypeImpl.make(parametrizedTypeWithResolvedActualArguments);
+						}
+					}
+					handleGenericArrayProperty(definitions, modelProperties, key2, genericArrayType, typeVariableToActualTypeMap);
 					
 					
 				}
+				/*else if(type instanceof TypeVariable)
+				{
+					handleTypevariableProperty(definitions, modelProperties, key2, (TypeVariable) type, typeVariableToActualTypeMap);
+					
+					
+				}*/
 				
 				else
 				{
@@ -715,6 +744,49 @@ private void addGenericModels(Map<String, Model> definitions) {
 		definitions.put(originalKey, model);
 		
 	}
+}
+
+private ParameterizedType parametrizedTypeWithResolvedActualArguments(Map<String, Type> typeVariableToActualTypeMap,
+		ParameterizedType parameterizedType1) {
+	final Type[] actualTypeArguments2 = parameterizedType1.getActualTypeArguments();
+	boolean needMyImpl=false;
+	if(actualTypeArguments2!=null)
+	{
+		for (Type actualTypeArgument2: actualTypeArguments2) {
+			if(actualTypeArgument2 instanceof TypeVariable)
+			{
+				needMyImpl=true;
+				break;
+			}
+		}
+	}
+	
+	if(needMyImpl)
+	{
+		
+		Type[] newactualTypeArguments= new Type[actualTypeArguments2.length];
+		for (int i = 0; i < actualTypeArguments2.length; i++) 
+		{
+			Type actualTypeArgument2=actualTypeArguments2[i];
+			if(actualTypeArgument2 instanceof TypeVariable)
+			{
+				TypeVariable tv=(TypeVariable) actualTypeArgument2;
+				newactualTypeArguments[i]=typeVariableToActualTypeMap.get(tv.getName());
+			}
+			else
+			{
+				newactualTypeArguments[i]=actualTypeArguments2[i];
+			}
+			
+		}
+		
+		parameterizedType1=sun.reflect.generics.reflectiveObjects.ParameterizedTypeImpl.make((Class<?>) parameterizedType1.getRawType(), newactualTypeArguments, parameterizedType1.getOwnerType());
+			
+		
+		
+		
+	}
+	return parameterizedType1;
 }
 
 
