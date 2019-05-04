@@ -94,6 +94,7 @@ public class ParameterizedPropertyHandler {
 			refProperty.set$ref("#/definitions/"+ref);
 			if(chainControl.getDefinitions().get(ref)==null)
 			{
+				
 				chainControl.getNewModelCreator().addIfParemeterizedType(type, false);
 			}
 			

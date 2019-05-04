@@ -34,6 +34,8 @@ public class NewModelCreator {
 			lastCounter=counter;
 			//System.out.println("loop "+i);
 			this.addGenericModels(definitions);
+			//RRR look here
+			//we will alsohave some other method here for using the other new set that wll create
 			this.addWildCardModels(definitions);
 			this.addNonGenericModels(definitions);
 		}
@@ -76,6 +78,7 @@ public class NewModelCreator {
 	}
 	
 	public void addIfParemeterizedType(Type genericType, boolean first) {
+		
 		if(genericType instanceof ParameterizedType)
 		{
 			/**
@@ -88,7 +91,11 @@ public class NewModelCreator {
 				prevent((Class) rawType, first);
 			}
 			
-			
+			//if any of the parameterizedType.getActualTypeArguments() is a Typevariable
+			//must refer fieldToParentGraphTillRoot
+			//resolve accordingly
+			//must add in another set not here
+			//RRR look here
 			if(parameterizedTypes.add((ParameterizedType)genericType))
 			{
 				counter++;
@@ -688,6 +695,7 @@ private void addGenericModels(Map<String, Model> definitions) {
 					
 					
 				}
+				
 				else
 				{
 					throw new SimplifiedSwaggerException("unexpected else for property "+key2+ " in generic model "+key+" was actual of "+type.getClass().getName());

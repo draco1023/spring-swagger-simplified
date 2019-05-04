@@ -18,4 +18,10 @@ at property level use properties api param. at out level use outer.
 Test ApiParams properly
 Also must handle genericArarys in generic beans
 
+
 also E extends muktiple
+
+Look for
+//RRR look here
+NewModelCreator.build and .addIfParemeterizedType
+//before going too far shall we test this thought process
