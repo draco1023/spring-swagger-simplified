@@ -39,6 +39,9 @@ public class GenericArrayPropertyHandler {
 			ArrayProperty arrayProperty= new ArrayProperty();
 			arrayProperty.setName(propertyName);
 			modelProperties.put(propertyName, arrayProperty);
+			
+			
+			
 			//build chain till it ends without a list, set, arry,map
 			//there invoke addIf
 			

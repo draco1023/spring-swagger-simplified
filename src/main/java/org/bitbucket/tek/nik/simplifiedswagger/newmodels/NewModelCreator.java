@@ -556,6 +556,10 @@ private void addGenericModels(Map<String, Model> definitions) {
 						{
 							propertiesMap.put(propName,genericReturnType);
 						}
+						else if(genericReturnType instanceof GenericArrayType)
+						{
+							propertiesMap.put(propName,genericReturnType);
+						}
 						
 						else
 						{
@@ -587,6 +591,10 @@ private void addGenericModels(Map<String, Model> definitions) {
 							propertiesMap.put(propName,genericReturnType);
 						}
 						else if(genericReturnType instanceof Class)
+						{
+							propertiesMap.put(propName,genericReturnType);
+						}
+						else if(genericReturnType instanceof GenericArrayType)
 						{
 							propertiesMap.put(propName,genericReturnType);
 						}
@@ -672,6 +680,12 @@ private void addGenericModels(Map<String, Model> definitions) {
 				{
 					
 					handleNonParameterizedProperty(definitions, modelProperties, key2, (Class)type);
+					
+				}
+				else if(type instanceof GenericArrayType)
+				{
+					handleGenericArrayProperty(definitions, modelProperties, key2, (GenericArrayType)type, typeVariableToActualTypeMap);
+					
 					
 				}
 				else

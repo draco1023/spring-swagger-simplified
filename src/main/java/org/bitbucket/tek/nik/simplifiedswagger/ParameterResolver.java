@@ -111,7 +111,7 @@ public class ParameterResolver {
 						}
 						else if(!property.getType().equals("ref"))
 						{
-							buildQueryParam(apiParamFromPrperty, prefix, parentIsRequired, resolvedNewParmeters, property, null, true);
+							buildQueryParam(apiParamFromPrperty, prefix, parentIsRequired, resolvedNewParmeters, property, null, preferQueryToFormParam);
 						}
 						else
 						{

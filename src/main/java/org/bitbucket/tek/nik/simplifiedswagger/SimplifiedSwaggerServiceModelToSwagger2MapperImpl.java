@@ -746,67 +746,74 @@ private void removeGenricModels(Map<String, Model> definitions) {
 					model.setDescription(sb.toString());
 				}
 			
-				
-				Set<String> propertiesKeySet = properties.keySet();
-				for (String propertiesKey : propertiesKeySet) {
-					Property property = properties.get(propertiesKey);
-					String name = property.getName();
+				if(properties!=null)
+				{
+					Set<String> propertiesKeySet = properties.keySet();
+					for (String propertiesKey : propertiesKeySet) {
+						Property property = properties.get(propertiesKey);
+						String name = property.getName();
+						
 					
-				
-					
-					
-					//if(!modelClazz.isEnum())
-					{
-						//you cant put contraints on a setter only getetr or fioeld
-						Method getter=getDeclaredGetter(modelClazz, property.getName());
-						Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey,  getter);
-						Class fieldMethodType = getFieldMethodType(field, getter);
-						String parameteerizedTypeIfFieldMethodTypeListOrSet = getParameteerizedTypeNameIfFieldMethodTypeListOrSet(
-								field, getter, fieldMethodType);
-						String mappedType = BasicMappingHolder.INSTANCE.getMappedByType(fieldMethodType.getName());
-						refToBasicIfNeeded(property, mappedType, properties, fieldMethodType);
-						refToBasicInArrayIfNeeded(property, mappedType, properties, fieldMethodType, 
-								parameteerizedTypeIfFieldMethodTypeListOrSet);
-						if(field!=null)
+						
+						
+						//if(!modelClazz.isEnum())
 						{
-							Annotation[] annotations = field.getAnnotations();
-							//annotationSort(annotations);
-							
-							for (Annotation annotation : annotations) {
+							//you cant put contraints on a setter only getetr or fioeld
+							Method getter=getDeclaredGetter(modelClazz, property.getName());
+							Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey,  getter);
+							Class fieldMethodType = getFieldMethodType(field, getter);
+							String parameteerizedTypeIfFieldMethodTypeListOrSet = getParameteerizedTypeNameIfFieldMethodTypeListOrSet(
+									field, getter, fieldMethodType);
+							String mappedType = BasicMappingHolder.INSTANCE.getMappedByType(fieldMethodType.getName());
+							refToBasicIfNeeded(property, mappedType, properties, fieldMethodType);
+							refToBasicInArrayIfNeeded(property, mappedType, properties, fieldMethodType, 
+									parameteerizedTypeIfFieldMethodTypeListOrSet);
+							if(field!=null)
+							{
+								Annotation[] annotations = field.getAnnotations();
+								//annotationSort(annotations);
 								
-								handleAnnotatedProperty(property, annotation, fieldMethodType);
+								for (Annotation annotation : annotations) {
+									
+									handleAnnotatedProperty(property, annotation, fieldMethodType);
+								}
 							}
-						}
-						if(getter!=null)
-						{
-							Annotation[] annotations = getter.getAnnotations();
-							for (Annotation annotation : annotations) {
-								
-								handleAnnotatedProperty(property, annotation, fieldMethodType);
+							if(getter!=null)
+							{
+								Annotation[] annotations = getter.getAnnotations();
+								for (Annotation annotation : annotations) {
+									
+									handleAnnotatedProperty(property, annotation, fieldMethodType);
+								}
 							}
-						}
-					}
-					
-					if(property instanceof ArrayProperty)
-					{
-						ArrayProperty arrayProperty=(ArrayProperty) property;
-						String pattern = (String) arrayProperty.getVendorExtensions().get("pattern");
-						if(pattern!=null)
-						{
-							arrayProperty.getItems().getVendorExtensions().put("pattern", pattern);
-						}
-						Boolean notNullArray = (Boolean) arrayProperty.getVendorExtensions().get("notNull");
-						Integer minLengthOfArray=(Integer) arrayProperty.getVendorExtensions().get("minItems");
-						if(notNullArray!=null && notNullArray.booleanValue() && minLengthOfArray!=null && minLengthOfArray.intValue()> 0)
-						{
-							arrayProperty.setRequired(true);
 						}
 						
+						if(property instanceof ArrayProperty)
+						{
+							ArrayProperty arrayProperty=(ArrayProperty) property;
+							String pattern = (String) arrayProperty.getVendorExtensions().get("pattern");
+							if(pattern!=null)
+							{
+								arrayProperty.getItems().getVendorExtensions().put("pattern", pattern);
+							}
+							Boolean notNullArray = (Boolean) arrayProperty.getVendorExtensions().get("notNull");
+							Integer minLengthOfArray=(Integer) arrayProperty.getVendorExtensions().get("minItems");
+							if(notNullArray!=null && notNullArray.booleanValue() && minLengthOfArray!=null && minLengthOfArray.intValue()> 0)
+							{
+								arrayProperty.setRequired(true);
+							}
+							
+						}
+						
+						
+						
 					}
-					
-					
-					
 				}
+				else
+				{
+					//throw new SimplifiedSwaggerException("why null");
+				}
+			
 			}
 		
 		}
@@ -878,66 +885,74 @@ private void removeGenricModels(Map<String, Model> definitions) {
 				}
 			
 			
-				
-				Set<String> propertiesKeySet = properties.keySet();
-				for (String propertiesKey : propertiesKeySet) {
-					Property property = properties.get(propertiesKey);
-					String name = property.getName();
+				if(properties!=null)
+				{
+					Set<String> propertiesKeySet = properties.keySet();
+					for (String propertiesKey : propertiesKeySet) {
+						Property property = properties.get(propertiesKey);
+						String name = property.getName();
+						
 					
-				
-					
-					
-					//if(!modelClazz.isEnum())
-					{
-						//you cant put contraints on a setter only getetr or fioeld
-						Method getter=getDeclaredGetter(modelClazz, property.getName());
-						Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey,  getter);
-						Class fieldMethodType = getFieldMethodType(field, getter);
-						//String parameteerizedTypeIfFieldMethodTypeListOrSet = getParameteerizedTypeIfFieldMethodTypeListOrSet(
-						//		field, getter, fieldMethodType);
-						//String mappedType = BasicMappingHolder.INSTANCE.getMappedByType(fieldMethodType.getName());
-						//refToBasicIfNeeded(property, mappedType, properties, fieldMethodType);
-						//refToBasicInArrayIfNeeded(property, mappedType, properties, fieldMethodType, 
-								//parameteerizedTypeIfFieldMethodTypeListOrSet);
-						if(field!=null)
+						
+						
+						//if(!modelClazz.isEnum())
 						{
-							Annotation[] annotations = field.getAnnotations();
-							//annotationSort(annotations);
-							
-							for (Annotation annotation : annotations) {
+							//you cant put contraints on a setter only getetr or fioeld
+							Method getter=getDeclaredGetter(modelClazz, property.getName());
+							Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey,  getter);
+							Class fieldMethodType = getFieldMethodType(field, getter);
+							//String parameteerizedTypeIfFieldMethodTypeListOrSet = getParameteerizedTypeIfFieldMethodTypeListOrSet(
+							//		field, getter, fieldMethodType);
+							//String mappedType = BasicMappingHolder.INSTANCE.getMappedByType(fieldMethodType.getName());
+							//refToBasicIfNeeded(property, mappedType, properties, fieldMethodType);
+							//refToBasicInArrayIfNeeded(property, mappedType, properties, fieldMethodType, 
+									//parameteerizedTypeIfFieldMethodTypeListOrSet);
+							if(field!=null)
+							{
+								Annotation[] annotations = field.getAnnotations();
+								//annotationSort(annotations);
 								
-								handleAnnotatedApiProperty(property, annotation, fieldMethodType);
+								for (Annotation annotation : annotations) {
+									
+									handleAnnotatedApiProperty(property, annotation, fieldMethodType);
+								}
+							}
+							if(getter!=null)
+							{
+								Annotation[] annotations = getter.getAnnotations();
+								for (Annotation annotation : annotations) {
+									
+									handleAnnotatedApiProperty(property, annotation, fieldMethodType);
+								}
 							}
 						}
-						if(getter!=null)
+						
+						/*not needed here
+						 * if(property instanceof ArrayProperty)
 						{
-							Annotation[] annotations = getter.getAnnotations();
-							for (Annotation annotation : annotations) {
-								
-								handleAnnotatedApiProperty(property, annotation, fieldMethodType);
+							ArrayProperty arrayProperty=(ArrayProperty) property;
+							String pattern = (String) arrayProperty.getVendorExtensions().get("pattern");
+							if(pattern!=null)
+							{
+								arrayProperty.getItems().getVendorExtensions().put("pattern", pattern);
 							}
-						}
-					}
-					
-					/*not needed here
-					 * if(property instanceof ArrayProperty)
-					{
-						ArrayProperty arrayProperty=(ArrayProperty) property;
-						String pattern = (String) arrayProperty.getVendorExtensions().get("pattern");
-						if(pattern!=null)
+						}*/
+						
+						Boolean hidden=(Boolean) property.getVendorExtensions().get("hidden");
+						if(hidden!=null && hidden)
 						{
-							arrayProperty.getItems().getVendorExtensions().put("pattern", pattern);
+							properties.remove(propertiesKey);
 						}
-					}*/
-					
-					Boolean hidden=(Boolean) property.getVendorExtensions().get("hidden");
-					if(hidden!=null && hidden)
-					{
-						properties.remove(propertiesKey);
+						
+						
 					}
-					
-					
+
 				}
+				else
+				{
+					//throw new SimplifiedSwaggerException("why null");
+				}
+				
 			}
 		
 		}
@@ -1314,6 +1329,14 @@ private List<String> buildList(String... args)
 	return ret;
 	
 }
+
+private static final String[] NOBODYMETHODTYPES= sortArray(new String[]{"get", "delete"});
+
+private static String[] sortArray(String[] input) {
+	Arrays.sort(input);
+	return input;
+}
+
 	private void buildOperation(Path path, MethodAndTag methdoAndTag, String key, Map<String, Model> definitions) 
 	{
 		
@@ -1341,10 +1364,15 @@ private List<String> buildList(String... args)
 			}
 			if(op.getConsumes()==null || op.getConsumes().size()==0)
 			{
-				op.setConsumes(buildList("application/json"));
+				if(Arrays.binarySearch(NOBODYMETHODTYPES, methodType)<0)
+				{
+					op.setConsumes(buildList("application/json"));
+				}
+				
 			}
 			if(op.getProduces()==null || op.getProduces().size()==0)
 			{
+				
 				op.setProduces(buildList("*/*"));
 			}
 			boolean preferQueryToFormParameter=operationTrackerData.preferQueryToFormParameter();
