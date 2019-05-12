@@ -183,7 +183,9 @@ public class ParameterResolver {
 		}
 		describeParameter(queryParameter);
 		Boolean hidden=(Boolean) queryParameter.getVendorExtensions().get("hidden");
-		if(hidden==null || (!hidden.booleanValue()))
+		boolean show=hidden==null || (!hidden.booleanValue());
+		
+		if(show)
 		{
 			resolvedNewParmeters.add(queryParameter);
 		}
@@ -219,7 +221,8 @@ public class ParameterResolver {
 			if(!queryParameter.getRequired())
 			{
 				//if we have it set as required we cant allow it to be hidden
-				queryParameter.getVendorExtensions().put("hidden", true);
+				
+				queryParameter.getVendorExtensions().put("hidden", apiParam.hidden()||apiParam.readOnly());
 			}
 			
 			
@@ -282,7 +285,7 @@ public class ParameterResolver {
 	
 	void describeParameter(Parameter parameter) {
 		String existingParameterDescription = parameter.getDescription();
-		existingParameterDescription=existingParameterDescription!=null?existingParameterDescription:parameter.getName();
+		existingParameterDescription=existingParameterDescription!=null && existingParameterDescription.length()>0?existingParameterDescription:parameter.getName();
 		Map<String, Object> vendorExtensions = parameter.getVendorExtensions();
 		StringBuilder sb= new StringBuilder();
 		sb.append(existingParameterDescription);
@@ -304,7 +307,7 @@ public class ParameterResolver {
 			apiParam=field.getAnnotation(ApiParam.class);
 			
 		}
-		if(getter!=null)
+		if(getter!=null && apiParam==null)
 		{
 			apiParam=getter.getAnnotation(ApiParam.class);
 			
