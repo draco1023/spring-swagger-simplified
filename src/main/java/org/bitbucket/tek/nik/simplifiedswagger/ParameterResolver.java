@@ -221,8 +221,11 @@ public class ParameterResolver {
 			if(!queryParameter.getRequired())
 			{
 				//if we have it set as required we cant allow it to be hidden
+				if(apiParam.hidden()||apiParam.readOnly())
+				{
+					queryParameter.getVendorExtensions().put("hidden", true);
+				}
 				
-				queryParameter.getVendorExtensions().put("hidden", apiParam.hidden()||apiParam.readOnly());
 			}
 			
 			
