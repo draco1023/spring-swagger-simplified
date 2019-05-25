@@ -91,7 +91,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 	@Autowired
 	private ApplicationContext context;
 	
-	private OperationTracker operationTracker= new OperationTracker();
+	
 	
 
 	@Autowired
@@ -106,6 +106,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 
 	@Override
 	public Swagger mapDocumentation(Documentation from) {
+		OperationTracker operationTracker= new OperationTracker();
 		
 		
 			
@@ -139,7 +140,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 				
 				List<MethodAndTag> list = pathToMethodListMap.get(key);
 				for (MethodAndTag methdoAndTag : list) {
-					 buildOperation(path, methdoAndTag, key, definitions);
+					 buildOperation(path, methdoAndTag, key, definitions, operationTracker);
 					
 					
 				}
@@ -149,9 +150,9 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 			transformDefinitions(definitions);
 			adjustExamples(definitions);
 			
-			expandResolvableParameters(paths, definitions);
-			removeHiddentParameters(paths, definitions);
-			this.operationTracker.cleanup();
+			expandResolvableParameters(paths, definitions, operationTracker);
+			removeHiddentParameters(paths, definitions, operationTracker);
+			operationTracker.cleanup();
 			transformDefinitionsUsingApi(definitions);
 			
 			
@@ -298,13 +299,14 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 
 
 
-	private void expandResolvableParameters(Map<String, Path> paths, Map<String, Model> definitions) {
+	private void expandResolvableParameters(Map<String, Path> paths, 
+			Map<String, Model> definitions, OperationTracker operationTracker) {
 		Set<String> pathKeys = paths.keySet();
 		for (String pathKey : pathKeys) {
 			Path path = paths.get(pathKey);
 			List<Operation> operations = path.getOperations();
 			for (Operation operation : operations) {
-				final OperationTrackerData operationTrackerData = this.operationTracker.get(operation);
+				final OperationTrackerData operationTrackerData = operationTracker.get(operation);
 				final ApiParam[] originalMethodApiParams = operationTrackerData.getApiParams();
 				List<Parameter> opParameters = operation.getParameters();
 				boolean preferQueryToFormParameter=operationTrackerData.preferQueryToFormParameter();
@@ -388,13 +390,14 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 
 
 	
-	private void removeHiddentParameters(Map<String, Path> paths, Map<String, Model> definitions) {
+	private void removeHiddentParameters(Map<String, Path> paths, 
+			Map<String, Model> definitions, OperationTracker operationTracker) {
 		Set<String> pathKeys = paths.keySet();
 		for (String pathKey : pathKeys) {
 			Path path = paths.get(pathKey);
 			List<Operation> operations = path.getOperations();
 			for (Operation operation : operations) {
-				final OperationTrackerData operationTrackerData = this.operationTracker.get(operation);
+				final OperationTrackerData operationTrackerData = operationTracker.get(operation);
 				final ApiParam[] originalMethodApiParams = operationTrackerData.getApiParams();
 				List<Parameter> opParameters = operation.getParameters();
 				for (int i = 0; i < opParameters.size(); i++) 
@@ -1337,7 +1340,10 @@ private static String[] sortArray(String[] input) {
 	return input;
 }
 
-	private void buildOperation(Path path, MethodAndTag methdoAndTag, String key, Map<String, Model> definitions) 
+	private void buildOperation(Path path, 
+			MethodAndTag methdoAndTag, 
+			String key, Map<String, Model> definitions,
+			OperationTracker operationTracker) 
 	{
 		
 		Method method = methdoAndTag.getMethod();
@@ -1346,7 +1352,7 @@ private static String[] sortArray(String[] input) {
 		{
 			Operation op= new Operation();
 			final OperationTrackerData operationTrackerData = new OperationTrackerData(method, op, methodType);
-			this.operationTracker.add(operationTrackerData);
+			operationTracker.add(operationTrackerData);
 			Annotation matchedRequestMapping = methdoAndTag.getMatchedRequestMapping();
 			
 			op.setTags(buildList(methdoAndTag.getTag().getName()));
