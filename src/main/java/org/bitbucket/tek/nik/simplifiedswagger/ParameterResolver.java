@@ -10,6 +10,7 @@ import java.util.Set;
 
 import org.bitbucket.tek.nik.simplifiedswagger.exception.SimplifiedSwaggerException;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ParameterizedComponentKeySymbols;
+import org.bitbucket.tek.nik.simplifiedswagger.newmodels.NewModelCreator;
 import org.springframework.http.MediaType;
 
 import io.swagger.annotations.ApiParam;
@@ -32,12 +33,13 @@ public class ParameterResolver {
 		this.maper = maper;
 	}
 
-	List<Parameter> buildNewResolvedParameters(String prefix, Map<String, Model> definitions, String simpleRef, boolean parentIsRequired, boolean preferQueryToFormParam) {
+	List<Parameter> buildNewResolvedParameters(String prefix, Map<String, Model> definitions, String simpleRef, 
+			boolean parentIsRequired, boolean preferQueryToFormParam, NewModelCreator newModelCreator) {
 		
 		List<Parameter> resolvedNewParmeters= new ArrayList<>();
 		
 		Class modelClazz=null;
-		Type modelClazzType = maper.getClassDefinition(simpleRef);
+		Type modelClazzType = maper.getClassDefinition(simpleRef, newModelCreator);
 		if(simpleRef.contains(ParameterizedComponentKeySymbols.LEFT))
 		{
 			if(modelClazzType instanceof ParameterizedType)
@@ -83,7 +85,7 @@ public class ParameterResolver {
 							if(items instanceof RefProperty)
 							{
 								RefProperty itemsRefProperty=(RefProperty) items;
-								List<Parameter> resolvedParmeters = buildNewResolvedParameters( prefix+key+"[0].", definitions, itemsRefProperty.getSimpleRef(), parentIsRequired && property.getRequired(), preferQueryToFormParam );
+								List<Parameter> resolvedParmeters = buildNewResolvedParameters( prefix+key+"[0].", definitions, itemsRefProperty.getSimpleRef(), parentIsRequired && property.getRequired(), preferQueryToFormParam ,newModelCreator);
 								//no need to remove before adding because nothing has been added yet
 								
 								resolvedNewParmeters.addAll(resolvedParmeters);
@@ -103,7 +105,7 @@ public class ParameterResolver {
 						else if(property instanceof RefProperty)
 						{
 							RefProperty refProperty=(RefProperty) property;
-							List<Parameter> resolvedParmeters = buildNewResolvedParameters( prefix+key+".", definitions, refProperty.getSimpleRef(), parentIsRequired && refProperty.getRequired(), preferQueryToFormParam);
+							List<Parameter> resolvedParmeters = buildNewResolvedParameters( prefix+key+".", definitions, refProperty.getSimpleRef(), parentIsRequired && refProperty.getRequired(), preferQueryToFormParam, newModelCreator);
 							//no need to remove before adding because nothing has been added yet
 							
 							resolvedNewParmeters.addAll(resolvedParmeters);

@@ -4,6 +4,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.Map;
 
+import org.bitbucket.tek.nik.simplifiedswagger.newmodels.NewModelCreator;
 import org.hibernate.validator.constraints.CreditCardNumber;
 
 import io.swagger.models.Model;
@@ -39,7 +40,7 @@ public class CreditCardNumberSwaggerDecorator implements ISwaggerDecorator {
 	}
 
 	@Override
-	public void decorateOperation(Operation operation, Annotation annotation, Method method) {
+	public void decorateOperation(Operation operation, Annotation annotation, Method method, NewModelCreator newModelCreator) {
 		
 		
 	}

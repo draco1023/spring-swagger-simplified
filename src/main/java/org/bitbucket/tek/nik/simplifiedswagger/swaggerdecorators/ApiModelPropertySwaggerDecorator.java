@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import org.bitbucket.tek.nik.simplifiedswagger.newmodels.NewModelCreator;
+
 import io.swagger.annotations.ApiModelProperty;
 import io.swagger.annotations.ApiModelProperty.AccessMode;
 import io.swagger.annotations.ApiOperation;
@@ -188,7 +190,7 @@ public class ApiModelPropertySwaggerDecorator implements ISwaggerDecorator {
 
 
 	@Override
-	public void decorateOperation(Operation operation, Annotation annotation, Method method) {
+	public void decorateOperation(Operation operation, Annotation annotation, Method method, NewModelCreator newModelCreator) {
 		
 	
 		

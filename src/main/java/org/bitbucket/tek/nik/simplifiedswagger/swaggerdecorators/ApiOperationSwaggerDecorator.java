@@ -9,6 +9,8 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import org.bitbucket.tek.nik.simplifiedswagger.newmodels.NewModelCreator;
+
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.Authorization;
 import io.swagger.annotations.AuthorizationScope;
@@ -79,7 +81,7 @@ public class ApiOperationSwaggerDecorator implements ISwaggerDecorator {
 	 * </p>
 	 */
 	@Override
-	public void decorateOperation(Operation operation, Annotation annotation, Method method) {
+	public void decorateOperation(Operation operation, Annotation annotation, Method method, NewModelCreator newModelCreator) {
 		
 		ApiOperation apiOperation=(ApiOperation) annotation;
 		String value = apiOperation.value();

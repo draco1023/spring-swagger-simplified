@@ -5,6 +5,8 @@ import java.lang.reflect.Method;
 
 import javax.xml.bind.annotation.XmlRootElement;
 
+import org.bitbucket.tek.nik.simplifiedswagger.newmodels.NewModelCreator;
+
 import io.swagger.models.AbstractModel;
 import io.swagger.models.Model;
 import io.swagger.models.Operation;
@@ -47,7 +49,7 @@ public class XmlRootElementSwaggerDecorator implements ISwaggerDecorator {
 
 
 	@Override
-	public void decorateOperation(Operation operation, Annotation annotation, Method method) {
+	public void decorateOperation(Operation operation, Annotation annotation, Method method, NewModelCreator newModelCreator) {
 		
 		
 	}

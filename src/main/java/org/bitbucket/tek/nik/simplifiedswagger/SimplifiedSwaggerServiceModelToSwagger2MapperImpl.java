@@ -102,7 +102,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 	
 	private static final Class[] requestMappingTypes= {RequestMapping.class, GetMapping.class, PostMapping.class, PutMapping.class, PatchMapping.class, DeleteMapping.class};
 
-	private NewModelCreator newModelCreator;
+	
 
 	@Override
 	public Swagger mapDocumentation(Documentation from) {
@@ -114,7 +114,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 			Info info = swagger.getInfo();
 			String basePath = swagger.getBasePath();
 			Map<String, Model> definitions = swagger.getDefinitions();
-			newModelCreator= new NewModelCreator(definitions);
+			NewModelCreator newModelCreator= new NewModelCreator(definitions);
 			ExternalDocs externalDocs = swagger.getExternalDocs();
 			String host = swagger.getHost();
 			List<String> consumes = swagger.getConsumes();
@@ -140,20 +140,20 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 				
 				List<MethodAndTag> list = pathToMethodListMap.get(key);
 				for (MethodAndTag methdoAndTag : list) {
-					 buildOperation(path, methdoAndTag, key, definitions, operationTracker);
+					 buildOperation(path, methdoAndTag, key, definitions, operationTracker, newModelCreator);
 					
 					
 				}
 			}
-			fixGenericReferencesInNonGenericBeans(definitions);
+			fixGenericReferencesInNonGenericBeans(definitions, newModelCreator);
 			newModelCreator.build();
-			transformDefinitions(definitions);
-			adjustExamples(definitions);
+			transformDefinitions(definitions, newModelCreator);
+			adjustExamples(definitions, newModelCreator);
 			
-			expandResolvableParameters(paths, definitions, operationTracker);
+			expandResolvableParameters(paths, definitions, operationTracker, newModelCreator);
 			removeHiddentParameters(paths, definitions, operationTracker);
 			operationTracker.cleanup();
-			transformDefinitionsUsingApi(definitions);
+			transformDefinitionsUsingApi(definitions, newModelCreator);
 			
 			
 			
@@ -180,13 +180,13 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 	 * no need for this method to rcurse diurectly
 	 */
 
-	private void fixGenericReferencesInNonGenericBeans(Map<String, Model> definitions) {
+	private void fixGenericReferencesInNonGenericBeans(Map<String, Model> definitions, NewModelCreator newModelCreator) {
 		Set<String> keySet = definitions.keySet();
 		for (String definitionsKey : keySet) 
 		{
 			if(!definitionsKey.contains(ParameterizedComponentKeySymbols.LEFT))
 			{
-				Type modelClazzType = getClassDefinition(definitionsKey);
+				Type modelClazzType = getClassDefinition(definitionsKey, newModelCreator);
 				Class modelClazz=(Class) modelClazzType;
 				//we dont want to go into what we consider basic types
 				//for all the basic types we should have a mapping
@@ -300,7 +300,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 
 
 	private void expandResolvableParameters(Map<String, Path> paths, 
-			Map<String, Model> definitions, OperationTracker operationTracker) {
+			Map<String, Model> definitions, OperationTracker operationTracker, NewModelCreator newModelCreator) {
 		Set<String> pathKeys = paths.keySet();
 		for (String pathKey : pathKeys) {
 			Path path = paths.get(pathKey);
@@ -323,7 +323,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 						if(needsResolving!=null && needsResolving.booleanValue())
 						{
 							List<Parameter> resolvedParmeters = expandTempBodyParameters(originalMethodApiParam, 
-									tempBodyParameter, definitions, preferQueryToFormParameter);
+									tempBodyParameter, definitions, preferQueryToFormParameter, newModelCreator);
 							opParameters.remove(i);
 							
 							opParameters.addAll(i, resolvedParmeters);
@@ -461,14 +461,14 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 
 //here must add drill logic which uses .
 	private List<Parameter> expandTempBodyParameters(ApiParam originalMethodApiParam, 
-			BodyParameter tempBodyParameter, Map<String, Model> definitions, boolean preferQueryToFormParam) {
+			BodyParameter tempBodyParameter, Map<String, Model> definitions, boolean preferQueryToFormParam, NewModelCreator newModelCreator) {
 		
 		RefModel schema = (RefModel) tempBodyParameter.getSchema();
 		String simpleRef = schema.getSimpleRef();
 		//makes sense to treat outermost object as required
 		//hence true
 		//if its not true each field within it is not there when the outermost object is not there
-		return parameterResolver.buildNewResolvedParameters( "", definitions, simpleRef, true, preferQueryToFormParam);
+		return parameterResolver.buildNewResolvedParameters( "", definitions, simpleRef, true, preferQueryToFormParam, newModelCreator);
 	}
 
 
@@ -489,7 +489,7 @@ private void removeGenricModels(Map<String, Model> definitions) {
 		
 	}
 	
-	private void adjustExamples(Map<String, Model> definitions) {
+	private void adjustExamples(Map<String, Model> definitions,NewModelCreator newModelCreator) {
 		Set<String> definitionsKeySet = definitions.keySet();
 		for (String definitionsKey : definitionsKeySet) {
 			if(definitionsKey.contains(ParameterizedComponentKeySymbols.LEFT))
@@ -497,7 +497,7 @@ private void removeGenricModels(Map<String, Model> definitions) {
 				continue;
 			}
 			Class modelClazz=null;
-			Type modelClazzType = getClassDefinition(definitionsKey);
+			Type modelClazzType = getClassDefinition(definitionsKey, newModelCreator);
 			if(definitionsKey.contains(ParameterizedComponentKeySymbols.LEFT))
 			{
 				if(modelClazzType instanceof ParameterizedType)
@@ -704,12 +704,12 @@ private void removeGenricModels(Map<String, Model> definitions) {
 	}
 
 
-	private void transformDefinitions(Map<String, Model> definitions) {
+	private void transformDefinitions(Map<String, Model> definitions, NewModelCreator newModelCreator) {
 		Set<String> definitionsKeySet = definitions.keySet();
 		for (String definitionsKey : definitionsKeySet) {
 			
 			Class modelClazz=null;
-			Type modelClazzType = getClassDefinition(definitionsKey);
+			Type modelClazzType = getClassDefinition(definitionsKey, newModelCreator);
 			if(definitionsKey.contains(ParameterizedComponentKeySymbols.LEFT))
 			{
 				if(modelClazzType instanceof ParameterizedType)
@@ -854,12 +854,12 @@ private void removeGenricModels(Map<String, Model> definitions) {
 		sb.append("</span></p>");
 	}
 	
-	private void transformDefinitionsUsingApi(Map<String, Model> definitions) {
+	private void transformDefinitionsUsingApi(Map<String, Model> definitions, NewModelCreator newModelCreator) {
 		Set<String> definitionsKeySet = definitions.keySet();
 		for (String definitionsKey : definitionsKeySet) {
 			
 			Class modelClazz=null;
-			Type modelClazzType = getClassDefinition(definitionsKey);
+			Type modelClazzType = getClassDefinition(definitionsKey, newModelCreator);
 			if(definitionsKey.contains(ParameterizedComponentKeySymbols.LEFT))
 			{
 				if(modelClazzType instanceof ParameterizedType)
@@ -1299,13 +1299,13 @@ private void removeGenricModels(Map<String, Model> definitions) {
 	}
 
 
-	public Type getClassDefinition(String definitionsKey)  {
+	public Type getClassDefinition(String definitionsKey, NewModelCreator newModelCreator)  {
 		try {
 			
 			Type ret=null;
 			if(definitionsKey.contains(ParameterizedComponentKeySymbols.LEFT))
 			{
-				ret=this.newModelCreator.getParameterizedModelType(definitionsKey);
+				ret=newModelCreator.getParameterizedModelType(definitionsKey);
 			}
 			else
 			{
@@ -1343,7 +1343,8 @@ private static String[] sortArray(String[] input) {
 	private void buildOperation(Path path, 
 			MethodAndTag methdoAndTag, 
 			String key, Map<String, Model> definitions,
-			OperationTracker operationTracker) 
+			OperationTracker operationTracker,
+			NewModelCreator newModelCreator) 
 	{
 		
 		Method method = methdoAndTag.getMethod();
@@ -1366,7 +1367,7 @@ private static String[] sortArray(String[] input) {
 			op.setProduces(buildList(produces));
 			Annotation[] methodAnnotations = method.getDeclaredAnnotations();
 			for (Annotation methodAnnotation : methodAnnotations) {
-				handleAnnotatedMethod(methodAnnotation, op, method);
+				handleAnnotatedMethod(methodAnnotation, op, method, newModelCreator);
 			}
 			if(op.getConsumes()==null || op.getConsumes().size()==0)
 			{
@@ -1391,7 +1392,7 @@ private static String[] sortArray(String[] input) {
 				Type genericParameterType = genericParameterTypes[i];
 				
 				
-				Parameter param = buildOpParameter(parameter, genericParameterType, definitions, preferQueryToFormParameter);
+				Parameter param = buildOpParameter(parameter, genericParameterType, definitions, preferQueryToFormParameter, newModelCreator);
 				if(param==null)
 				{
 					//then paramter is not a basic type
@@ -1417,7 +1418,7 @@ private static String[] sortArray(String[] input) {
 					if(found==null)//this can happen if the actual object is not needed after converting to parameters
 					{
 						//TODO add a removal logic later
-						this.newModelCreator.addIfParemeterizedType(genericParameterType, false);
+						newModelCreator.addIfParemeterizedType(genericParameterType, false);
 					}
 					opParams.add(bodyParameter);
 				}
@@ -1451,17 +1452,18 @@ private static String[] sortArray(String[] input) {
 				}
 			}
 			
-			if(returnType==void.class)
-			{
-				addResponse(responses, HttpStatus.OK);
-
-			}
-			else
-			{
-				addRefResponse(responses, HttpStatus.OK, returnType, genericReturnType);
-			}
+			
 			if(!responsesExist)
 			{
+				if(returnType==void.class)
+				{
+					addResponse(responses, HttpStatus.OK);
+
+				}
+				else
+				{
+					addRefResponse(responses, HttpStatus.OK, returnType, genericReturnType, newModelCreator);
+				}
 				addResponse(responses, HttpStatus.CREATED);
 				addResponse(responses, HttpStatus.UNAUTHORIZED);
 				addResponse(responses, HttpStatus.FORBIDDEN);
@@ -1500,7 +1502,7 @@ private static String[] sortArray(String[] input) {
 	//MAIN CHANGE
 	//this method will change
 	private void addRefResponse(Map<String, Response> responses, HttpStatus httpStatus, Class<?> returnType,
-			Type genericReturnType) {
+			Type genericReturnType, NewModelCreator newModelCreator) {
 		ResponseContainer responseContainer = new ResponseContainer();
 		ModelOrRefBuilder bodyParameterBuilder= new ModelOrRefBuilder(genericReturnType, responseContainer, newModelCreator);
 		OuterContainer built = bodyParameterBuilder.build();
@@ -1556,7 +1558,8 @@ private static String[] sortArray(String[] input) {
 
 */
 	private Parameter buildOpParameter(java.lang.reflect.Parameter parameter,
-			Type genericParameterType, Map<String, Model> definitions, boolean preferQueryToFormParam) {
+			Type genericParameterType, Map<String, Model> definitions, boolean preferQueryToFormParam,
+			NewModelCreator newModelCreator) {
 		Annotation[] annotations = parameter.getDeclaredAnnotations();
 		
 		
@@ -1979,7 +1982,7 @@ private String[] constrollersToIgnore= {"org.springframework.boot.autoconfigure.
 	
 	private void handleAnnotatedMethod(
 			Annotation annotation, Operation operation,
-			Method method) {
+			Method method, NewModelCreator newModelCreator) {
 		
 		//for methods lets handle both swagger and validation annotations togather
 		String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
@@ -1987,7 +1990,7 @@ private String[] constrollersToIgnore= {"org.springframework.boot.autoconfigure.
 		{
 			ISwaggerDecorator bean = context.getBean(beanName, ISwaggerDecorator.class);
 			
-			bean.decorateOperation(operation, annotation, method);
+			bean.decorateOperation(operation, annotation, method, newModelCreator);
 		} else {
 			unMappedAnnotations.add(annotation.annotationType());
 

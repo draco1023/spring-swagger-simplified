@@ -34,8 +34,7 @@ public class NewModelCreator {
 			lastCounter=counter;
 			//System.out.println("loop "+i);
 			this.addGenericModels(definitions);
-			//RRR look here
-			//we will alsohave some other method here for using the other new set that wll create
+			
 			this.addWildCardModels(definitions);
 			this.addNonGenericModels(definitions);
 		}

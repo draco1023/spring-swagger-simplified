@@ -3,6 +3,7 @@ package org.bitbucket.tek.nik.simplifiedswagger.swaggerdecorators;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 
+import org.bitbucket.tek.nik.simplifiedswagger.newmodels.NewModelCreator;
 import org.springframework.web.bind.annotation.RequestHeader;
 
 import io.swagger.models.Model;
@@ -36,7 +37,7 @@ public class RequestHeaderSwaggerDecorator implements ISwaggerDecorator {
 	}
 
 	@Override
-	public void decorateOperation(Operation operation, Annotation annotation, Method method) {
+	public void decorateOperation(Operation operation, Annotation annotation, Method method, NewModelCreator newModelCreator) {
 		
 	}
 

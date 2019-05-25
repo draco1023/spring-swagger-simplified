@@ -10,6 +10,10 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ModelOrRefBuilder;
+import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.OuterContainer;
+import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ResponseContainer;
+import org.bitbucket.tek.nik.simplifiedswagger.newmodels.NewModelCreator;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.RequestHeader;
 
@@ -53,7 +57,7 @@ public class ApiResponsesSwaggerDecorator implements ISwaggerDecorator {
 	
 	
 	@Override
-	public void decorateOperation(Operation operation, Annotation annotation, Method method) {
+	public void decorateOperation(Operation operation, Annotation annotation, Method method, NewModelCreator newModelCreator) {
 		
 		ApiResponses apiResponses=(ApiResponses) annotation;
 		if(apiResponses!=null)
@@ -61,13 +65,29 @@ public class ApiResponsesSwaggerDecorator implements ISwaggerDecorator {
 			Map<String, Response> responses= new LinkedHashMap<>();
 			final ApiResponse[] value = apiResponses.value();
 			for (ApiResponse apiResponse : value) {
+				Class<?> respType = apiResponse.response();
+				Response response;
+				if(respType ==void.class|| respType== Void.class)
+				{
+					response= new Response();
+				}
+				else
+				{
+					ResponseContainer responseContainer = new ResponseContainer();
+					ModelOrRefBuilder bodyParameterBuilder= new ModelOrRefBuilder(apiResponse.response(), responseContainer, newModelCreator);
+					OuterContainer built = bodyParameterBuilder.build();
+					response=responseContainer.getResponse();
+					//RefResponse response= new RefResponse();
+					
+				}
 				
-				Response response= new Response();
 				response.setDescription(apiResponse.message());
 				apiResponse.responseHeaders();
 				apiResponse.responseContainer();
 				String reference = apiResponse.reference();//ignore
-				Class<?> respType = apiResponse.response();//ignore
+				
+				
+				
 				apiResponse.examples();//ignore
 				//we are going to ignore apiResponse.responseHeaders() and apiResponse.responseContainer()because we will be relying only on @RequestHeader
 					responses.put(String.valueOf(apiResponse.code()), response);
