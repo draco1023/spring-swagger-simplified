@@ -1437,7 +1437,20 @@ private static String[] sortArray(String[] input) {
 			op.setParameters(opParams);
 			Class<?> returnType = method.getReturnType();
 			Type genericReturnType = method.getGenericReturnType();
-			Map<String, Response> responses= new LinkedHashMap<>();
+			Map<String, Response> responses = op.getResponses();
+			boolean responsesExist=false;
+			if(responses==null)
+			{
+				responses= new LinkedHashMap<>();
+			}
+			else
+			{
+				if(responses.size()>0)
+				{
+					responsesExist=true;
+				}
+			}
+			
 			if(returnType==void.class)
 			{
 				addResponse(responses, HttpStatus.OK);
@@ -1447,11 +1460,14 @@ private static String[] sortArray(String[] input) {
 			{
 				addRefResponse(responses, HttpStatus.OK, returnType, genericReturnType);
 			}
+			if(!responsesExist)
+			{
+				addResponse(responses, HttpStatus.CREATED);
+				addResponse(responses, HttpStatus.UNAUTHORIZED);
+				addResponse(responses, HttpStatus.FORBIDDEN);
+				addResponse(responses, HttpStatus.NOT_FOUND);
+			}
 			
-			addResponse(responses, HttpStatus.CREATED);
-			addResponse(responses, HttpStatus.UNAUTHORIZED);
-			addResponse(responses, HttpStatus.FORBIDDEN);
-			addResponse(responses, HttpStatus.NOT_FOUND);
 			
 			op.setResponses(responses);
 			Boolean hidden=(Boolean) op.getVendorExtensions().get("hidden");
