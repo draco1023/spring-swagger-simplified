@@ -194,96 +194,100 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 				{
 					Model model = definitions.get(definitionsKey);
 					Map<String, Property> properties = model.getProperties();
-					Set<String> propertiesKeySet = properties.keySet();
-					for (String propertiesKey : propertiesKeySet) 
+					if(properties!=null)
 					{
-						Property property = properties.get(propertiesKey);
-						if(property instanceof RefProperty)
+						Set<String> propertiesKeySet = properties.keySet();
+						for (String propertiesKey : propertiesKeySet) 
 						{
-							RefProperty refProperty=(RefProperty) property;
-							
-							Method getter=getDeclaredGetter(modelClazz, property.getName());
-							Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey, getter);
-							Class fieldMethodType = getFieldMethodType(field, getter);
-							Type fieldMethodGenericType = getFieldMethodGenericType(field, getter);
-							
-							if(fieldMethodGenericType instanceof ParameterizedType)
+							Property property = properties.get(propertiesKey);
+							if(property instanceof RefProperty)
 							{
-								ParameterizedType parameterizedType= (ParameterizedType) fieldMethodGenericType;
-								Model parameterizedPropertiesModel = definitions.get(refProperty.getSimpleRef());
-								if(parameterizedPropertiesModel==null)
-								{
-									//compute new 
-									String newKey = ParameterizedComponentKeyBuilder.buildKeyForParameterizedComponentType(parameterizedType);
-									refProperty.set$ref(newKey);
-									newModelCreator.addIfParemeterizedType(parameterizedType, false);
-
-								}
-							}
-							
-							
-							
-						}
-						else if(property instanceof ArrayProperty)
-						{
-							ArrayProperty arrayProperty=(ArrayProperty) property;
-							Property items = arrayProperty.getItems();
-							
-							if(items instanceof RefProperty)
-							{
-								RefProperty refProperty=(RefProperty) items;
+								RefProperty refProperty=(RefProperty) property;
+								
 								Method getter=getDeclaredGetter(modelClazz, property.getName());
-								Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey,  getter);
+								Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey, getter);
 								Class fieldMethodType = getFieldMethodType(field, getter);
-								Type fieldMethodGenericType1=getFieldMethodGenericType(field, getter);
-								Type compaonentType=null;
-								if(fieldMethodGenericType1 instanceof GenericArrayType)
+								Type fieldMethodGenericType = getFieldMethodGenericType(field, getter);
+								
+								if(fieldMethodGenericType instanceof ParameterizedType)
 								{
-									GenericArrayType genericArrayType=(java.lang.reflect.GenericArrayType) fieldMethodGenericType1;
-									compaonentType=genericArrayType.getGenericComponentType();
-								}
-								else if(fieldMethodType.isArray())
-								{
-									compaonentType=fieldMethodType.getComponentType();
-								}
-								else //must be list or set
-								{
-									compaonentType=getParameteerizedTypeIfFieldMethodTypeListOrSet(
-											field, getter, fieldMethodType);
-								}
-								if(compaonentType!=null)
-								{
-									if(compaonentType instanceof ParameterizedType)
+									ParameterizedType parameterizedType= (ParameterizedType) fieldMethodGenericType;
+									Model parameterizedPropertiesModel = definitions.get(refProperty.getSimpleRef());
+									if(parameterizedPropertiesModel==null)
 									{
-										ParameterizedType parameterizedType= (ParameterizedType) compaonentType;
-										Model parameterizedPropertiesModel = definitions.get(refProperty.getSimpleRef());
-										//if(parameterizedPropertiesModel==null)//its having wrong assignments//best to replace
-										{
-											//compute new 
-											String newKey = ParameterizedComponentKeyBuilder.buildKeyForParameterizedComponentType(parameterizedType);
-											refProperty.set$ref(newKey);
-											newModelCreator.addIfParemeterizedType(parameterizedType, false);
+										//compute new 
+										String newKey = ParameterizedComponentKeyBuilder.buildKeyForParameterizedComponentType(parameterizedType);
+										refProperty.set$ref(newKey);
+										newModelCreator.addIfParemeterizedType(parameterizedType, false);
 
+									}
+								}
+								
+								
+								
+							}
+							else if(property instanceof ArrayProperty)
+							{
+								ArrayProperty arrayProperty=(ArrayProperty) property;
+								Property items = arrayProperty.getItems();
+								
+								if(items instanceof RefProperty)
+								{
+									RefProperty refProperty=(RefProperty) items;
+									Method getter=getDeclaredGetter(modelClazz, property.getName());
+									Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey,  getter);
+									Class fieldMethodType = getFieldMethodType(field, getter);
+									Type fieldMethodGenericType1=getFieldMethodGenericType(field, getter);
+									Type compaonentType=null;
+									if(fieldMethodGenericType1 instanceof GenericArrayType)
+									{
+										GenericArrayType genericArrayType=(java.lang.reflect.GenericArrayType) fieldMethodGenericType1;
+										compaonentType=genericArrayType.getGenericComponentType();
+									}
+									else if(fieldMethodType.isArray())
+									{
+										compaonentType=fieldMethodType.getComponentType();
+									}
+									else //must be list or set
+									{
+										compaonentType=getParameteerizedTypeIfFieldMethodTypeListOrSet(
+												field, getter, fieldMethodType);
+									}
+									if(compaonentType!=null)
+									{
+										if(compaonentType instanceof ParameterizedType)
+										{
+											ParameterizedType parameterizedType= (ParameterizedType) compaonentType;
+											Model parameterizedPropertiesModel = definitions.get(refProperty.getSimpleRef());
+											//if(parameterizedPropertiesModel==null)//its having wrong assignments//best to replace
+											{
+												//compute new 
+												String newKey = ParameterizedComponentKeyBuilder.buildKeyForParameterizedComponentType(parameterizedType);
+												refProperty.set$ref(newKey);
+												newModelCreator.addIfParemeterizedType(parameterizedType, false);
+
+											}
 										}
 									}
+									else
+									{
+										throw new SimplifiedSwaggerException(propertiesKey+" is an array  in "+modelClazz.getName() +" but could not find type of row");
+									}
+									
 								}
 								else
 								{
-									throw new SimplifiedSwaggerException(propertiesKey+" is an array  in "+modelClazz.getName() +" but could not find type of row");
+									//if not RefProperty we need not do
 								}
 								
+								
+							
+								
+								
 							}
-							else
-							{
-								//if not RefProperty we need not do
-							}
-							
-							
-						
-							
-							
 						}
 					}
+
 						
 
 			
@@ -513,29 +517,33 @@ private void removeGenricModels(Map<String, Model> definitions) {
 			Model model = definitions.get(definitionsKey);
 			
 			Map<String, Property> properties = model.getProperties();
-			Set<String> propertiesKeySet = properties.keySet();
-			for (String propertiesKey : propertiesKeySet) {
-				Property property = properties.get(propertiesKey);
-				
-				String name = property.getName();
-				//if(!modelClazz.isEnum())
-				{
-					//you cant put contraints on a setter only getetr or fioeld
-					Method getter=getDeclaredGetter(modelClazz, property.getName());
-					Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey,  getter);
-					Class fieldMethodType = getFieldMethodType(field, getter);
-					String parameteerizedTypeIfFieldMethodTypeListOrSet = getParameteerizedTypeNameIfFieldMethodTypeListOrSet(
-							field, getter, fieldMethodType);
-					String mappedType = BasicMappingHolder.INSTANCE.getMappedByType(fieldMethodType.getName());
-					createExampleForBasicTypes(property, fieldMethodType.getName(), mappedType);
+			if(properties!=null)
+			{
+				Set<String> propertiesKeySet = properties.keySet();
+				for (String propertiesKey : propertiesKeySet) {
+					Property property = properties.get(propertiesKey);
 					
-					createExamplesForBasicInArrayIfNeeded(property, 
-							mappedType, 
-							fieldMethodType, 
-							parameteerizedTypeIfFieldMethodTypeListOrSet);
+					String name = property.getName();
+					//if(!modelClazz.isEnum())
+					{
+						//you cant put contraints on a setter only getetr or fioeld
+						Method getter=getDeclaredGetter(modelClazz, property.getName());
+						Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey,  getter);
+						Class fieldMethodType = getFieldMethodType(field, getter);
+						String parameteerizedTypeIfFieldMethodTypeListOrSet = getParameteerizedTypeNameIfFieldMethodTypeListOrSet(
+								field, getter, fieldMethodType);
+						String mappedType = BasicMappingHolder.INSTANCE.getMappedByType(fieldMethodType.getName());
+						createExampleForBasicTypes(property, fieldMethodType.getName(), mappedType);
+						
+						createExamplesForBasicInArrayIfNeeded(property, 
+								mappedType, 
+								fieldMethodType, 
+								parameteerizedTypeIfFieldMethodTypeListOrSet);
+					}
+					
 				}
-				
 			}
+			
 			
 			
 			
@@ -891,7 +899,9 @@ private void removeGenricModels(Map<String, Model> definitions) {
 				if(properties!=null)
 				{
 					Set<String> propertiesKeySet = properties.keySet();
-					for (String propertiesKey : propertiesKeySet) {
+					String[] propertiesArr= new String[propertiesKeySet.size()];
+					propertiesKeySet.toArray(propertiesArr);
+					for (String propertiesKey : propertiesArr) {
 						Property property = properties.get(propertiesKey);
 						String name = property.getName();
 						
