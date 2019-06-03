@@ -342,7 +342,10 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 						{
 							parameter.setDescription(originalMethodApiParam.value());
 							parameter.setAccess(originalMethodApiParam.access());
+							//calling readonly on a simple parameter is of no benefit 
+							//cannot carry out implied removal from response if part of response
 							parameter.setReadOnly(originalMethodApiParam.readOnly());
+							
 							if(parameter instanceof AbstractSerializableParameter)
 							{
 								AbstractSerializableParameter asp=(AbstractSerializableParameter) parameter;
@@ -350,15 +353,11 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 								asp.setExample(originalMethodApiParam.example());
 								setEnumValues(asp, originalMethodApiParam);
 							}
-							
-							if(!parameter.getRequired())
+							if(!parameter.getRequired() && originalMethodApiParam.hidden())
 							{
-								//if we have it set as required we cant allow it to be hidden
 								parameter.getVendorExtensions().put("hidden", true);
 							}
-							//
-							//finish this properly
-							
+														
 							
 							//
 							

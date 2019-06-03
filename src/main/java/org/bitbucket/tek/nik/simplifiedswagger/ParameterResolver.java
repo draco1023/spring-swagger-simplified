@@ -215,7 +215,8 @@ public class ParameterResolver {
 				vaue=vaue.trim();
 				queryParameter.setDescription(vaue);
 			}
-			
+			//does not matter
+			//cannot carry out implied removal from response if part of response
 			queryParameter.setReadOnly(apiParam.readOnly());
 			queryParameter.setDefaultValue(apiParam.defaultValue());
 			
@@ -223,7 +224,7 @@ public class ParameterResolver {
 			if(!queryParameter.getRequired())
 			{
 				//if we have it set as required we cant allow it to be hidden
-				if(apiParam.hidden()||apiParam.readOnly())
+				if(apiParam.hidden())
 				{
 					queryParameter.getVendorExtensions().put("hidden", true);
 				}
