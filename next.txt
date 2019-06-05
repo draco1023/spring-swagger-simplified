@@ -1,27 +1,3 @@
-For ApiParams wont have a swagger decorator.
-Going to enhance expandResolvableParameters
-For each parameter will obtain ApiParam here.
-Will pas on that ApiParam when drilling in a tempBodyParameter
-when properties are drilled already have logic to get the propertyBased ApiParam
-Every property will have its own ApiParam, its parent Propertie's ApiParam and so on till we reach the tempBodyParameter's ApiParam.
-Every property will have its ow list of ApiParam.
-On the final parameter we can lopp through the list and apply each ApiParam.
-key thing to achieve this will be to when building operations,
-have a counter.
-put the counter as an extension property in each operation
-have an array where given the counter should be able to access the opration and tyhe java method
-can have a cleanup at end to remove this counetr from each operation and dismantle the array.
-
-
-NO building a list of ApiParams is not good.
-at property level use properties api param. at out level use outer.
-Test ApiParams properly
-Also must handle genericArarys in generic beans
-
-
-also E extends muktiple
-
-Look for
-//RRR look here
-NewModelCreator.build and .addIfParemeterizedType
-//before going too far shall we test this thought process
+Look for //RRR
+We must avoid the this.fields in ... and make them local using a wrapper
+We must start using this new swagger config
