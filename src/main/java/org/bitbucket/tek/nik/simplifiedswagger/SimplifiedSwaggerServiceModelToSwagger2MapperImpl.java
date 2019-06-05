@@ -64,6 +64,7 @@ import io.swagger.models.Model;
 import io.swagger.models.Operation;
 import io.swagger.models.Path;
 import io.swagger.models.RefModel;
+import io.swagger.models.RefResponse;
 import io.swagger.models.Response;
 import io.swagger.models.Scheme;
 import io.swagger.models.SecurityRequirement;
@@ -85,7 +86,10 @@ import io.swagger.models.properties.DateTimeProperty;
 import io.swagger.models.properties.Property;
 import io.swagger.models.properties.RefProperty;
 import io.swagger.models.properties.StringProperty;
+import springfox.documentation.builders.ResponseMessageBuilder;
+import springfox.documentation.schema.ModelReference;
 import springfox.documentation.service.Documentation;
+import springfox.documentation.service.ResponseMessage;
 import springfox.documentation.spring.web.plugins.Docket;
 import springfox.documentation.swagger2.mappers.ServiceModelToSwagger2MapperImpl;
 
@@ -116,12 +120,33 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 	boolean showUnMappedAnnotations;
 	
 	private static final Class[] requestMappingTypes= {RequestMapping.class, GetMapping.class, PostMapping.class, PutMapping.class, PatchMapping.class, DeleteMapping.class};
+	private Map<RequestMethod, List<ResponseMessage>> customGlobalResponseMessages;
 
 	@PostConstruct
 	private void init()
 	{
 		applyDefaultResponseMessages = applyDefaultResponseMessages();
+		customGlobalResponseMessages = globalResponseMessages();
 	}
+
+	private Map<RequestMethod, List<ResponseMessage>> globalResponseMessages(){
+		
+		
+		Map<RequestMethod, List<ResponseMessage>> ret=null;
+		if(docket!=null)
+		{
+			try {
+				Field field = docket.getClass().getDeclaredField("responseMessages");
+				field.setAccessible(true);
+				ret = (Map<RequestMethod, List<ResponseMessage>>) field.get(docket);
+				field.setAccessible(false);
+			} catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
+				throw new SimplifiedSwaggerException("could not introspect docket", e);
+			}
+		}
+		return ret;
+		
+		}
 
 	@Override
 	public Swagger mapDocumentation(Documentation from) {
@@ -1499,6 +1524,32 @@ private static String[] sortArray(String[] input) {
 				addResponse(responses, HttpStatus.FORBIDDEN);
 				addResponse(responses, HttpStatus.NOT_FOUND);
 				}
+				else
+				{
+					if(customGlobalResponseMessages!=null)
+					{
+						RequestMethod methodTypeRequestMethod=RequestMethod.valueOf(methodType.toUpperCase());
+						List<ResponseMessage> responseMessages = customGlobalResponseMessages.get(methodTypeRequestMethod);
+						if(responseMessages!=null)
+						{
+							for (ResponseMessage responseMessage : responseMessages) {
+								int httpStatusCode = responseMessage.getCode();
+								String message = responseMessage.getMessage();
+								ModelReference responseModel = responseMessage.getResponseModel();
+								if(responseModel==null)
+								{
+									addResponse( responses, httpStatusCode, message);
+								}
+								else
+								{
+									addRefResponse( responses, httpStatusCode, message, responseModel, newModelCreator);
+									
+								}
+							}
+						}
+						
+					}
+				}
 			}
 			
 			
@@ -1550,6 +1601,39 @@ private static String[] sortArray(String[] input) {
 		response.setDescription(httpStatus.name());
 		
 		responses.put(String.valueOf(httpStatus.value()), response);
+	}
+	
+	private void addRefResponse(Map<String, Response> responses, int  httpStatusCode, String message, ModelReference modelReference,
+			 NewModelCreator newModelCreator) {
+		ResponseContainer responseContainer = new ResponseContainer();
+		ModelOrRefBuilder bodyParameterBuilder;
+		try {
+			bodyParameterBuilder = new ModelOrRefBuilder(Class.forName(modelReference.getType()), responseContainer, newModelCreator);
+			OuterContainer built = bodyParameterBuilder.build();
+			Response response=responseContainer.getResponse();
+			if(message==null)
+			{
+				HttpStatus httpStatus=HttpStatus.resolve(httpStatusCode);
+				message=httpStatus!=null?httpStatus.name():String.valueOf(httpStatusCode);
+			}
+			response.setDescription(message);
+			responses.put(String.valueOf(httpStatusCode), response);
+		} catch (ClassNotFoundException e) {
+			throw new SimplifiedSwaggerException("Unable to load class of "+modelReference.getType(), e);
+		}
+		
+	}
+	
+	private void addResponse(Map<String, Response> responses, int httpStatusCode, String message) {
+		Response response= new Response();
+		if(message==null)
+		{
+			HttpStatus httpStatus=HttpStatus.resolve(httpStatusCode);
+			message=httpStatus!=null?httpStatus.name():String.valueOf(httpStatusCode);
+		}
+		response.setDescription(message);
+		
+		responses.put(String.valueOf(httpStatusCode), response);
 	}
 	//MAIN CHANGE
 	//this method will change
