@@ -21,6 +21,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
+import javax.annotation.PostConstruct;
+
 import org.bitbucket.tek.nik.simplifiedswagger.exception.SimplifiedSwaggerException;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ModelOrRefBuilder;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.OuterContainer;
@@ -84,15 +86,28 @@ import io.swagger.models.properties.Property;
 import io.swagger.models.properties.RefProperty;
 import io.swagger.models.properties.StringProperty;
 import springfox.documentation.service.Documentation;
+import springfox.documentation.spring.web.plugins.Docket;
 import springfox.documentation.swagger2.mappers.ServiceModelToSwagger2MapperImpl;
 
 public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceModelToSwagger2MapperImpl {
 
+	private Set<Class> unMappedAnnotations = new HashSet<>();
+	private Set<String> definitionsThatCanBeRemoved= new HashSet<>();
+	//RRR for above fields must create a wrapper and convert to local variable
+	//also for some other such data we did this previously
+	
+	private String[] constrollersToIgnore= {"org.springframework.boot.autoconfigure.web.servlet.error.BasicErrorController",
+			springfox.documentation.swagger.web.ApiResourceController.class.getName()};
+	private static final String[] NOBODYMETHODTYPES= sortArray(new String[]{"get", "delete"});
+	private ParameterResolver parameterResolver= new ParameterResolver(this);
 	@Autowired
 	private ApplicationContext context;
 	
 	
+	@Autowired( )
+	Docket docket;
 	
+	private boolean applyDefaultResponseMessages;
 
 	@Autowired
 	private ListableBeanFactory listableBeanFactory;
@@ -102,7 +117,11 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 	
 	private static final Class[] requestMappingTypes= {RequestMapping.class, GetMapping.class, PostMapping.class, PutMapping.class, PatchMapping.class, DeleteMapping.class};
 
-	
+	@PostConstruct
+	private void init()
+	{
+		applyDefaultResponseMessages = applyDefaultResponseMessages();
+	}
 
 	@Override
 	public Swagger mapDocumentation(Documentation from) {
@@ -459,7 +478,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 
 
 
-	private ParameterResolver parameterResolver= new ParameterResolver(this);
+	
 
 
 //here must add drill logic which uses .
@@ -1269,7 +1288,7 @@ private void removeGenricModels(Map<String, Model> definitions) {
 		}
 	}
 	
-	private Set<String> definitionsThatCanBeRemoved= new HashSet<>();
+
 
 
 	private Field getDeclaredField(Class modelClazz, String propertyName)  {
@@ -1342,7 +1361,7 @@ private List<String> buildList(String... args)
 	
 }
 
-private static final String[] NOBODYMETHODTYPES= sortArray(new String[]{"get", "delete"});
+
 
 private static String[] sortArray(String[] input) {
 	Arrays.sort(input);
@@ -1473,10 +1492,13 @@ private static String[] sortArray(String[] input) {
 				{
 					addRefResponse(responses, HttpStatus.OK, returnType, genericReturnType, newModelCreator);
 				}
+				if(applyDefaultResponseMessages())
+				{
 				addResponse(responses, HttpStatus.CREATED);
 				addResponse(responses, HttpStatus.UNAUTHORIZED);
 				addResponse(responses, HttpStatus.FORBIDDEN);
 				addResponse(responses, HttpStatus.NOT_FOUND);
+				}
 			}
 			
 			
@@ -1496,6 +1518,27 @@ private static String[] sortArray(String[] input) {
 		
 		
 		
+		
+	}
+
+
+
+
+
+	private boolean applyDefaultResponseMessages(){
+		boolean ret=true;
+		if(docket!=null)
+		{
+			try {
+				Field field = docket.getClass().getDeclaredField("applyDefaultResponseMessages");
+				field.setAccessible(true);
+				ret = field.getBoolean(docket);
+				field.setAccessible(false);
+			} catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
+				throw new SimplifiedSwaggerException("could not introspect docket", e);
+			}
+		}
+		return ret;
 		
 	}
 
@@ -1761,8 +1804,6 @@ private static String[] sortArray(String[] input) {
 		return methodTypes;
 	}
 
-private String[] constrollersToIgnore= {"org.springframework.boot.autoconfigure.web.servlet.error.BasicErrorController",
-		springfox.documentation.swagger.web.ApiResourceController.class.getName()};
 
 	private Map<String, List<MethodAndTag>> buildPathToMethodAndTagMap(List<Tag> tags) {
 		
@@ -1917,7 +1958,10 @@ private String[] constrollersToIgnore= {"org.springframework.boot.autoconfigure.
 
 
 
-	private Set<Class> unMappedAnnotations = new HashSet<>();
+	
+
+
+	
 
 	//private Properties propertyTypeMappingProps;
 	
