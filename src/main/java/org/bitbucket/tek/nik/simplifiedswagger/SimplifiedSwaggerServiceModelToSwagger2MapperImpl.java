@@ -1492,7 +1492,7 @@ private static String[] sortArray(String[] input) {
 				{
 					addRefResponse(responses, HttpStatus.OK, returnType, genericReturnType, newModelCreator);
 				}
-				if(applyDefaultResponseMessages())
+				if(applyDefaultResponseMessages)
 				{
 				addResponse(responses, HttpStatus.CREATED);
 				addResponse(responses, HttpStatus.UNAUTHORIZED);
