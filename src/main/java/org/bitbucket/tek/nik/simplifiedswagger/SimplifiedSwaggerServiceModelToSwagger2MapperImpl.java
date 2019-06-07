@@ -42,8 +42,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.ClassUtils;
+import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -176,6 +178,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 			paths.clear();
 			tags.clear();
 			removeGenricModels(definitions);
+			introspectConrollerAdvices(newModelCreator);
 			Map<String, List<MethodAndTag>> pathToMethodListMap = buildPathToMethodAndTagMap(tags);
 			Set<String> keySet = pathToMethodListMap.keySet();
 			for (String key : keySet) {
@@ -189,6 +192,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 					
 				}
 			}
+			
 			fixGenericReferencesInNonGenericBeans(definitions, newModelCreator);
 			newModelCreator.build();
 			transformDefinitions(definitions, newModelCreator);
@@ -1889,6 +1893,50 @@ private static String[] sortArray(String[] input) {
 	}
 
 
+	private void introspectConrollerAdvices(NewModelCreator newModelCreator)
+	{
+		Map<String, Object> controllerAdvices = listableBeanFactory.getBeansWithAnnotation(ControllerAdvice.class);
+		Set<String> keySet = controllerAdvices.keySet();
+		for (String key : keySet) 
+		{
+			
+			if(key.equals("repositoryRestExceptionHandler"))
+			{
+				continue;
+			}
+			Object controllerAdvice = controllerAdvices.get(key);
+			Class controllerAdviceClass=null;
+			if(ClassUtils.isCglibProxy(controllerAdvice))
+			{
+				controllerAdviceClass=ClassUtils.getUserClass(controllerAdvice);
+			}
+			else
+			{
+				controllerAdviceClass=controllerAdvice.getClass();
+			}
+			
+			Method[] declaredMethods = controllerAdviceClass.getDeclaredMethods();
+			
+			for (Method declaredMethod : declaredMethods) 
+			{
+				if(declaredMethod.isAnnotationPresent(ExceptionHandler.class))
+				{
+					Class<?> returnType = declaredMethod.getReturnType();
+					Type genericReturnType = declaredMethod.getGenericReturnType();
+					if(returnType!=void.class ||returnType!=Void.class)
+					{
+						ResponseContainer responseContainer = new ResponseContainer();
+						ModelOrRefBuilder bodyParameterBuilder= new ModelOrRefBuilder(genericReturnType, responseContainer, newModelCreator);
+						OuterContainer built = bodyParameterBuilder.build();
+						//we only want the response model registered
+						
+						
+					}
+				}
+							
+			}
+		}
+	}
 	private Map<String, List<MethodAndTag>> buildPathToMethodAndTagMap(List<Tag> tags) {
 		
 		
