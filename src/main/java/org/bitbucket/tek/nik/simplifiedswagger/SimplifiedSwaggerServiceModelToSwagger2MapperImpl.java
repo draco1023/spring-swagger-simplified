@@ -97,10 +97,7 @@ import springfox.documentation.swagger2.mappers.ServiceModelToSwagger2MapperImpl
 
 public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceModelToSwagger2MapperImpl {
 
-	private Set<Class> unMappedAnnotations = new HashSet<>();
-	private Set<String> definitionsThatCanBeRemoved= new HashSet<>();
-	//RRR for above fields must create a wrapper and convert to local variable
-	//also for some other such data we did this previously
+	
 	
 	private String[] constrollersToIgnore= {"org.springframework.boot.autoconfigure.web.servlet.error.BasicErrorController",
 			springfox.documentation.swagger.web.ApiResourceController.class.getName()};
@@ -152,6 +149,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 
 	@Override
 	public Swagger mapDocumentation(Documentation from) {
+		
 		OperationTracker operationTracker= new OperationTracker();
 		
 		
@@ -160,7 +158,8 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 			Info info = swagger.getInfo();
 			String basePath = swagger.getBasePath();
 			Map<String, Model> definitions = swagger.getDefinitions();
-			NewModelCreator newModelCreator= new NewModelCreator(definitions);
+			
+			SimplifiedSwaggerData simplifiedSwaggerData = new SimplifiedSwaggerData(definitions);
 			ExternalDocs externalDocs = swagger.getExternalDocs();
 			String host = swagger.getHost();
 			List<String> consumes = swagger.getConsumes();
@@ -178,7 +177,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 			paths.clear();
 			tags.clear();
 			removeGenricModels(definitions);
-			introspectConrollerAdvices(newModelCreator);
+			introspectConrollerAdvices(simplifiedSwaggerData.getNewModelCreator());
 			Map<String, List<MethodAndTag>> pathToMethodListMap = buildPathToMethodAndTagMap(tags);
 			Set<String> keySet = pathToMethodListMap.keySet();
 			for (String key : keySet) {
@@ -187,27 +186,27 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 				
 				List<MethodAndTag> list = pathToMethodListMap.get(key);
 				for (MethodAndTag methdoAndTag : list) {
-					 buildOperation(path, methdoAndTag, key, definitions, operationTracker, newModelCreator);
+					 buildOperation(path, methdoAndTag, key, definitions, operationTracker, simplifiedSwaggerData);
 					
 					
 				}
 			}
 			
-			fixGenericReferencesInNonGenericBeans(definitions, newModelCreator);
-			newModelCreator.build();
-			transformDefinitions(definitions, newModelCreator);
-			adjustExamples(definitions, newModelCreator);
+			fixGenericReferencesInNonGenericBeans(definitions, simplifiedSwaggerData.getNewModelCreator());
+			simplifiedSwaggerData.getNewModelCreator().build();
+			transformDefinitions(definitions, simplifiedSwaggerData);
+			adjustExamples(definitions, simplifiedSwaggerData.getNewModelCreator());
 			
-			expandResolvableParameters(paths, definitions, operationTracker, newModelCreator);
+			expandResolvableParameters(paths, definitions, operationTracker, simplifiedSwaggerData.getNewModelCreator());
 			removeHiddentParameters(paths, definitions, operationTracker);
 			operationTracker.cleanup();
-			transformDefinitionsUsingApi(definitions, newModelCreator);
+			transformDefinitionsUsingApi(definitions, simplifiedSwaggerData);
 			
 			
 			
 			if(showUnMappedAnnotations)
 			{
-				System.err.println("unMappedAnnotations=" + unMappedAnnotations);
+				System.err.println("unMappedAnnotations=" + simplifiedSwaggerData.getUnMappedAnnotations());
 			}
 			//unused code below will remove later. commenting out for now
 			//newModelCreator.tempShowBlocked();
@@ -759,12 +758,12 @@ private void removeGenricModels(Map<String, Model> definitions) {
 	}
 
 
-	private void transformDefinitions(Map<String, Model> definitions, NewModelCreator newModelCreator) {
+	private void transformDefinitions(Map<String, Model> definitions, SimplifiedSwaggerData simplifiedSwaggerData) {
 		Set<String> definitionsKeySet = definitions.keySet();
 		for (String definitionsKey : definitionsKeySet) {
 			
 			Class modelClazz=null;
-			Type modelClazzType = getClassDefinition(definitionsKey, newModelCreator);
+			Type modelClazzType = getClassDefinition(definitionsKey, simplifiedSwaggerData.getNewModelCreator());
 			if(definitionsKey.contains(ParameterizedComponentKeySymbols.LEFT))
 			{
 				if(modelClazzType instanceof ParameterizedType)
@@ -788,7 +787,7 @@ private void removeGenricModels(Map<String, Model> definitions) {
 				
 				Annotation[] declaredClassAnnotations = modelClazz.getDeclaredAnnotations();
 				for (Annotation declaredClassAnnotation : declaredClassAnnotations) {
-					handleAnnotatedModel(model, declaredClassAnnotation, modelClazz);
+					handleAnnotatedModel(model, declaredClassAnnotation, modelClazz, simplifiedSwaggerData);
 				}
 				Map<String, Object> modelVendorExtensions = model.getVendorExtensions();
 				if(modelVendorExtensions.size()>0)
@@ -823,9 +822,9 @@ private void removeGenricModels(Map<String, Model> definitions) {
 							String parameteerizedTypeIfFieldMethodTypeListOrSet = getParameteerizedTypeNameIfFieldMethodTypeListOrSet(
 									field, getter, fieldMethodType);
 							String mappedType = BasicMappingHolder.INSTANCE.getMappedByType(fieldMethodType.getName());
-							refToBasicIfNeeded(property, mappedType, properties, fieldMethodType);
+							refToBasicIfNeeded(property, mappedType, properties, fieldMethodType,  simplifiedSwaggerData);
 							refToBasicInArrayIfNeeded(property, mappedType, properties, fieldMethodType, 
-									parameteerizedTypeIfFieldMethodTypeListOrSet);
+									parameteerizedTypeIfFieldMethodTypeListOrSet, simplifiedSwaggerData);
 							if(field!=null)
 							{
 								Annotation[] annotations = field.getAnnotations();
@@ -833,7 +832,7 @@ private void removeGenricModels(Map<String, Model> definitions) {
 								
 								for (Annotation annotation : annotations) {
 									
-									handleAnnotatedProperty(property, annotation, fieldMethodType);
+									handleAnnotatedProperty(property, annotation, fieldMethodType, simplifiedSwaggerData);
 								}
 							}
 							if(getter!=null)
@@ -841,7 +840,7 @@ private void removeGenricModels(Map<String, Model> definitions) {
 								Annotation[] annotations = getter.getAnnotations();
 								for (Annotation annotation : annotations) {
 									
-									handleAnnotatedProperty(property, annotation, fieldMethodType);
+									handleAnnotatedProperty(property, annotation, fieldMethodType, simplifiedSwaggerData);
 								}
 							}
 						}
@@ -877,7 +876,7 @@ private void removeGenricModels(Map<String, Model> definitions) {
 		}
 		
 		
-		for (String definitionsThatCanBeRemovedKey : definitionsThatCanBeRemoved) {
+		for (String definitionsThatCanBeRemovedKey : simplifiedSwaggerData.getDefinitionsThatCanBeRemoved()) {
 			definitions.remove(definitionsThatCanBeRemovedKey);
 		}
 		
@@ -909,12 +908,12 @@ private void removeGenricModels(Map<String, Model> definitions) {
 		sb.append("</span></p>");
 	}
 	
-	private void transformDefinitionsUsingApi(Map<String, Model> definitions, NewModelCreator newModelCreator) {
+	private void transformDefinitionsUsingApi(Map<String, Model> definitions, SimplifiedSwaggerData simplifiedSwaggerData) {
 		Set<String> definitionsKeySet = definitions.keySet();
 		for (String definitionsKey : definitionsKeySet) {
 			
 			Class modelClazz=null;
-			Type modelClazzType = getClassDefinition(definitionsKey, newModelCreator);
+			Type modelClazzType = getClassDefinition(definitionsKey, simplifiedSwaggerData.getNewModelCreator());
 			if(definitionsKey.contains(ParameterizedComponentKeySymbols.LEFT))
 			{
 				if(modelClazzType instanceof ParameterizedType)
@@ -974,7 +973,7 @@ private void removeGenricModels(Map<String, Model> definitions) {
 								
 								for (Annotation annotation : annotations) {
 									
-									handleAnnotatedApiProperty(property, annotation, fieldMethodType);
+									handleAnnotatedApiProperty(property, annotation, fieldMethodType, simplifiedSwaggerData);
 								}
 							}
 							if(getter!=null)
@@ -982,7 +981,7 @@ private void removeGenricModels(Map<String, Model> definitions) {
 								Annotation[] annotations = getter.getAnnotations();
 								for (Annotation annotation : annotations) {
 									
-									handleAnnotatedApiProperty(property, annotation, fieldMethodType);
+									handleAnnotatedApiProperty(property, annotation, fieldMethodType, simplifiedSwaggerData);
 								}
 							}
 						}
@@ -1186,7 +1185,8 @@ private void removeGenricModels(Map<String, Model> definitions) {
 	private void refToBasicInArrayIfNeeded(Property property, 
 			String mappedType, Map<String, Property> properties, 
 			Class fieldMethodType, 
-			String parameteerizedTypeIfFieldMethodTypeListOrSet) {
+			String parameteerizedTypeIfFieldMethodTypeListOrSet,
+			SimplifiedSwaggerData simplifiedSwaggerData) {
 		if(property instanceof ArrayProperty )
 		{
 			ArrayProperty arrayProperty=(ArrayProperty) property;
@@ -1213,7 +1213,7 @@ private void removeGenricModels(Map<String, Model> definitions) {
 			
 			if(items instanceof RefProperty && mappedComponentType!=null)
 			{
-				Property changed = getChanged(mappedComponentType, (RefProperty) items);
+				Property changed = getChanged(mappedComponentType, (RefProperty) items, simplifiedSwaggerData);
 				if(changed!=null)
 				{
 					arrayProperty.setItems(changed);
@@ -1225,7 +1225,8 @@ private void removeGenricModels(Map<String, Model> definitions) {
 		}
 	}
 	
-	private Property getChanged(String mappedType, RefProperty refProperty)
+	private Property getChanged(String mappedType, RefProperty refProperty, 
+			SimplifiedSwaggerData simplifiedSwaggerData)
 	{
 		Property chnaged=null;
 		
@@ -1299,17 +1300,18 @@ private void removeGenricModels(Map<String, Model> definitions) {
 		if(chnaged!=null)
 		{
 			String get$ref = refProperty.get$ref();
-			definitionsThatCanBeRemoved.add(get$ref.substring("#/definitions/".length()));
+			simplifiedSwaggerData.getDefinitionsThatCanBeRemoved().add(get$ref.substring("#/definitions/".length()));
 			
 		}
 		return chnaged;
 	}
-	private void refToBasicIfNeeded(Property property, String mappedType, Map<String, Property> properties, Class fieldMethodType) {
+	private void refToBasicIfNeeded(Property property, String mappedType, Map<String, Property> properties, 
+			Class fieldMethodType, SimplifiedSwaggerData simplifiedSwaggerData) {
 		if(property instanceof RefProperty && mappedType!=null)
 		{
 			
 			RefProperty refProperty=(RefProperty) property;
-			Property chnaged = getChanged(mappedType, refProperty);
+			Property chnaged = getChanged(mappedType, refProperty,  simplifiedSwaggerData);
 			if(chnaged!=null)
 			{
 				properties.put(chnaged.getName(), chnaged);
@@ -1401,7 +1403,7 @@ private static String[] sortArray(String[] input) {
 			MethodAndTag methdoAndTag, 
 			String key, Map<String, Model> definitions,
 			OperationTracker operationTracker,
-			NewModelCreator newModelCreator) 
+			SimplifiedSwaggerData simplifiedSwaggerData) 
 	{
 		
 		Method method = methdoAndTag.getMethod();
@@ -1424,7 +1426,7 @@ private static String[] sortArray(String[] input) {
 			op.setProduces(buildList(produces));
 			Annotation[] methodAnnotations = method.getDeclaredAnnotations();
 			for (Annotation methodAnnotation : methodAnnotations) {
-				handleAnnotatedMethod(methodAnnotation, op, method, newModelCreator);
+				handleAnnotatedMethod(methodAnnotation, op, method, simplifiedSwaggerData);
 			}
 			if(op.getConsumes()==null || op.getConsumes().size()==0)
 			{
@@ -1449,7 +1451,7 @@ private static String[] sortArray(String[] input) {
 				Type genericParameterType = genericParameterTypes[i];
 				
 				
-				Parameter param = buildOpParameter(parameter, genericParameterType, definitions, preferQueryToFormParameter, newModelCreator);
+				Parameter param = buildOpParameter(parameter, genericParameterType, definitions, preferQueryToFormParameter, simplifiedSwaggerData.getNewModelCreator());
 				if(param==null)
 				{
 					//then paramter is not a basic type
@@ -1463,7 +1465,7 @@ private static String[] sortArray(String[] input) {
 					//treat temprarily like a body paramter
 					//will change it later
 					ParameterContainer parameterContainer = new ParameterContainer();
-					ModelOrRefBuilder bodyParameterBuilder= new ModelOrRefBuilder(genericParameterType, parameterContainer, newModelCreator);
+					ModelOrRefBuilder bodyParameterBuilder= new ModelOrRefBuilder(genericParameterType, parameterContainer, simplifiedSwaggerData.getNewModelCreator());
 					OuterContainer built = bodyParameterBuilder.build();
 					BodyParameter bodyParameter = parameterContainer.getBodyParameter();
 					bodyParameter.setRequired(true);
@@ -1475,7 +1477,7 @@ private static String[] sortArray(String[] input) {
 					if(found==null)//this can happen if the actual object is not needed after converting to parameters
 					{
 						//TODO add a removal logic later
-						newModelCreator.addIfParemeterizedType(genericParameterType, false);
+						simplifiedSwaggerData.getNewModelCreator().addIfParemeterizedType(genericParameterType, false);
 					}
 					opParams.add(bodyParameter);
 				}
@@ -1485,7 +1487,7 @@ private static String[] sortArray(String[] input) {
 					Annotation[] declaredAnnotations = parameter.getDeclaredAnnotations();
 					for (Annotation declaredAnnotation : declaredAnnotations) {
 						handleAnnotatedParameter( declaredAnnotation,
-								param, parameter);
+								param, parameter, simplifiedSwaggerData);
 					}
 					opParams.add(param);
 				}
@@ -1519,7 +1521,7 @@ private static String[] sortArray(String[] input) {
 				}
 				else
 				{
-					addRefResponse(responses, HttpStatus.OK, returnType, genericReturnType, newModelCreator);
+					addRefResponse(responses, HttpStatus.OK, returnType, genericReturnType, simplifiedSwaggerData.getNewModelCreator());
 				}
 				if(applyDefaultResponseMessages)
 				{
@@ -1546,7 +1548,7 @@ private static String[] sortArray(String[] input) {
 								}
 								else
 								{
-									addRefResponse( responses, httpStatusCode, message, responseModel, newModelCreator);
+									addRefResponse( responses, httpStatusCode, message, responseModel, simplifiedSwaggerData.getNewModelCreator());
 									
 								}
 							}
@@ -2112,7 +2114,7 @@ private static String[] sortArray(String[] input) {
 	
 }
 	
-	private void handleAnnotatedProperty(Property property, Annotation annotation, Class propertyType) 
+	private void handleAnnotatedProperty(Property property, Annotation annotation, Class propertyType, SimplifiedSwaggerData simplifiedSwaggerData) 
 	{
 
 		if(!annotation.annotationType().getPackage().getName().equals(SwaggerDecoratorConstants.SWAGGER_ANNOTATION_PACKAGE))
@@ -2123,14 +2125,14 @@ private static String[] sortArray(String[] input) {
 				ISwaggerDecorator bean = context.getBean(beanName, ISwaggerDecorator.class);
 				bean.decorateProperty(property, annotation, propertyType);
 			} else {
-				unMappedAnnotations.add(annotation.annotationType());
+				simplifiedSwaggerData.getUnMappedAnnotations().add(annotation.annotationType());
 	
 			}
 		}
 
 	}
 	
-	private void handleAnnotatedApiProperty(Property property, Annotation annotation, Class propertyType) {
+	private void handleAnnotatedApiProperty(Property property, Annotation annotation, Class propertyType, SimplifiedSwaggerData simplifiedSwaggerData) {
 		if((!(annotation instanceof ApiParam))  && annotation.annotationType().getPackage().getName().equals(SwaggerDecoratorConstants.SWAGGER_ANNOTATION_PACKAGE))
 		{
 			String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
@@ -2139,7 +2141,7 @@ private static String[] sortArray(String[] input) {
 				ISwaggerDecorator bean = context.getBean(beanName, ISwaggerDecorator.class);
 				bean.decorateProperty(property, annotation, propertyType);
 			} else {
-				unMappedAnnotations.add(annotation.annotationType());
+				simplifiedSwaggerData.getUnMappedAnnotations().add(annotation.annotationType());
 	
 			}
 		}
@@ -2149,7 +2151,7 @@ private static String[] sortArray(String[] input) {
 	private void handleAnnotatedParameter(
 	
 			Annotation annotation, Parameter matchedOperationParameter,
-			java.lang.reflect.Parameter methodParameter) {
+			java.lang.reflect.Parameter methodParameter, SimplifiedSwaggerData simplifiedSwaggerData) {
 		
 		if(!(annotation instanceof ApiParam))
 		{
@@ -2159,7 +2161,7 @@ private static String[] sortArray(String[] input) {
 				ISwaggerDecorator bean = context.getBean(beanName, ISwaggerDecorator.class);
 				bean.decorateParameter(matchedOperationParameter, annotation, methodParameter);
 			} else {
-				unMappedAnnotations.add(annotation.annotationType());
+				simplifiedSwaggerData.getUnMappedAnnotations().add(annotation.annotationType());
 	
 			}
 		}
@@ -2167,7 +2169,7 @@ private static String[] sortArray(String[] input) {
 	
 	private void handleAnnotatedMethod(
 			Annotation annotation, Operation operation,
-			Method method, NewModelCreator newModelCreator) {
+			Method method, SimplifiedSwaggerData simplifiedSwaggerData) {
 		
 		//for methods lets handle both swagger and validation annotations togather
 		String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
@@ -2175,16 +2177,16 @@ private static String[] sortArray(String[] input) {
 		{
 			ISwaggerDecorator bean = context.getBean(beanName, ISwaggerDecorator.class);
 			
-			bean.decorateOperation(operation, annotation, method, newModelCreator);
+			bean.decorateOperation(operation, annotation, method, simplifiedSwaggerData.getNewModelCreator());
 		} else {
-			unMappedAnnotations.add(annotation.annotationType());
+			simplifiedSwaggerData.getUnMappedAnnotations().add(annotation.annotationType());
 
 		}
 		
 		
 	}
 	
-	private void handleAnnotatedModel(Model model, Annotation annotation, Class modelClazz) {
+	private void handleAnnotatedModel(Model model, Annotation annotation, Class modelClazz,SimplifiedSwaggerData simplifiedSwaggerData) {
 		if(!annotation.annotationType().getPackage().getName().equals(SwaggerDecoratorConstants.SWAGGER_ANNOTATION_PACKAGE))
 		{
 			String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
@@ -2193,7 +2195,7 @@ private static String[] sortArray(String[] input) {
 				ISwaggerDecorator bean = context.getBean(beanName, ISwaggerDecorator.class);
 				bean.decorateModel(model, annotation, modelClazz);
 			} else {
-				unMappedAnnotations.add(annotation.annotationType());
+				simplifiedSwaggerData.getUnMappedAnnotations().add(annotation.annotationType());
 	
 			}
 		}
