@@ -38,6 +38,7 @@ import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
@@ -58,6 +59,8 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.google.common.base.Predicate;
 
 import io.swagger.annotations.ApiParam;
 import io.swagger.models.ExternalDocs;
@@ -90,8 +93,12 @@ import io.swagger.models.properties.RefProperty;
 import io.swagger.models.properties.StringProperty;
 import springfox.documentation.builders.ResponseMessageBuilder;
 import springfox.documentation.schema.ModelReference;
+import springfox.documentation.service.AuthorizationScope;
 import springfox.documentation.service.Documentation;
 import springfox.documentation.service.ResponseMessage;
+import springfox.documentation.service.SecurityReference;
+import springfox.documentation.service.SecurityScheme;
+import springfox.documentation.spi.service.contexts.SecurityContext;
 import springfox.documentation.spring.web.plugins.Docket;
 import springfox.documentation.swagger2.mappers.ServiceModelToSwagger2MapperImpl;
 
@@ -120,32 +127,39 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 	
 	private static final Class[] requestMappingTypes= {RequestMapping.class, GetMapping.class, PostMapping.class, PutMapping.class, PatchMapping.class, DeleteMapping.class};
 	private Map<RequestMethod, List<ResponseMessage>> customGlobalResponseMessages;
-
+	private List<? extends SecurityScheme> securitySchemes;
+	private  List<SecurityContext> securityContexts;
 	@PostConstruct
 	private void init()
 	{
+		
 		applyDefaultResponseMessages = applyDefaultResponseMessages();
-		customGlobalResponseMessages = globalResponseMessages();
+		customGlobalResponseMessages = (Map<RequestMethod, List<ResponseMessage>>) extractDocketFieldInternal("responseMessages");
+		securitySchemes=(List<? extends SecurityScheme>) extractDocketFieldInternal("securitySchemes");
+		securityContexts=(List<SecurityContext>) extractDocketFieldInternal("securityContexts");
 	}
 
-	private Map<RequestMethod, List<ResponseMessage>> globalResponseMessages(){
-		
-		
-		Map<RequestMethod, List<ResponseMessage>> ret=null;
-		if(docket!=null)
+	
+private Object extractDocketFieldInternal(String fieldName) {
+	return extractObjectsField(fieldName, docket);
+}
+
+
+private Object extractObjectsField(String fieldName, Object object) {
+	Object ret=null;
+		if(object!=null)
 		{
 			try {
-				Field field = docket.getClass().getDeclaredField("responseMessages");
+				Field field = object.getClass().getDeclaredField(fieldName);
 				field.setAccessible(true);
-				ret = (Map<RequestMethod, List<ResponseMessage>>) field.get(docket);
+				ret = field.get(object);
 				field.setAccessible(false);
 			} catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
-				throw new SimplifiedSwaggerException("could not introspect docket", e);
+				throw new SimplifiedSwaggerException("could not introspect object "+object.getClass().getName(), e);
 			}
 		}
 		return ret;
-		
-		}
+}
 
 	@Override
 	public Swagger mapDocumentation(Documentation from) {
@@ -1427,6 +1441,43 @@ private static String[] sortArray(String[] input) {
 			Annotation[] methodAnnotations = method.getDeclaredAnnotations();
 			for (Annotation methodAnnotation : methodAnnotations) {
 				handleAnnotatedMethod(methodAnnotation, op, method, simplifiedSwaggerData);
+			}
+			List<Map<String, List<String>>> security = op.getSecurity();
+			
+			if(security==null || security.size()==0)
+			{
+				
+				if(this.securityContexts!=null)
+				{
+					List<Map<String, List<String>>> opSecurity = new ArrayList<Map<String, List<String>>>();
+					for (SecurityContext securityContext : this.securityContexts) 
+					{
+						Predicate<String> selector =(Predicate<String>) extractObjectsField("selector", securityContext);
+						boolean apply = selector.apply(key);
+						if(apply)
+						{
+							
+							
+							Map<String, List<String>> map= new HashMap<String, List<String>>();
+							List<SecurityReference> securityReferences = securityContext.getSecurityReferences();
+							for (SecurityReference securityReference : securityReferences) 
+							{
+								List<String> scopesList= new ArrayList<String>();
+								String reference = securityReference.getReference();
+								List<AuthorizationScope> scopes = securityReference.getScopes();
+								for (AuthorizationScope scope : scopes) {
+									String scopeAsString = scope.getScope();
+									scopesList.add(scopeAsString);
+									
+								}
+								map.put(reference, scopesList);
+							}
+							opSecurity.add(map);
+						}
+						
+					}
+					op.setSecurity(opSecurity);
+				}
 			}
 			if(op.getConsumes()==null || op.getConsumes().size()==0)
 			{

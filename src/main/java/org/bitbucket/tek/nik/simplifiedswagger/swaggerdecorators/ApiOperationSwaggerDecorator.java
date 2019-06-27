@@ -93,8 +93,12 @@ public class ApiOperationSwaggerDecorator implements ISwaggerDecorator {
 			AuthorizationScope[] authScopes = authorization.scopes();
 			List<String> scopes= new ArrayList<>();
 			for (AuthorizationScope authorizationScope : authScopes) {
-				scopes.add(authorizationScope.scope());
-				//ignoring description as in original
+				String scope = authorizationScope.scope();
+				if(scope!=null && scope.length()>0)
+				{
+					scopes.add(scope);
+					//ignoring description as in original
+				}
 			}
 			operation.addSecurity(authorization.value(), scopes);
 		}
