@@ -7,11 +7,13 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.lang.reflect.WildcardType;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -316,6 +318,19 @@ private Object extractObjectsField(String fieldName, Object object) {
 									}
 									if(compaonentType!=null)
 									{
+										
+										if(compaonentType instanceof WildcardType)
+										{
+											WildcardType wildcardType=(WildcardType) compaonentType;
+											if(wildcardType.getUpperBounds()!=null && wildcardType.getUpperBounds().length>0)
+											{
+												compaonentType= wildcardType.getUpperBounds()[0];
+											}
+											//so do nothing
+											//if needed later add a logic to register it
+											//or reregister it
+											
+										}
 										if(compaonentType instanceof ParameterizedType)
 										{
 											ParameterizedType parameterizedType= (ParameterizedType) compaonentType;
@@ -1174,7 +1189,7 @@ private void removeGenricModels(Map<String, Model> definitions) {
 	
 	private Type getParameterizedTypIfListOrSet(Type genericType, Class fieldMethodType) {
 		Type parameteerizedTypeIfFieldMethodTypeListOrSet=null;
-		if(List.class.isAssignableFrom(fieldMethodType)||Set.class.isAssignableFrom(fieldMethodType))
+		if(List.class.isAssignableFrom(fieldMethodType)||Set.class.isAssignableFrom(fieldMethodType)||Collection.class==fieldMethodType)
 		{
 			
 			if(genericType instanceof ParameterizedType)
@@ -1358,7 +1373,20 @@ private void removeGenricModels(Map<String, Model> definitions) {
 			try {
 				ret= modelClazz.getMethod(methodName);
 			} catch (NoSuchMethodException | SecurityException e1) {
-				//do nothing here
+				methodName="get"+ propertyName.substring(0, 2).toUpperCase()+(propertyName.length()>2?propertyName.substring(2):"");
+				try {
+				ret= modelClazz.getMethod(methodName);
+				}
+				catch (NoSuchMethodException | SecurityException e2) {
+					methodName="is"+ propertyName.substring(0, 2).toUpperCase()+(propertyName.length()>2?propertyName.substring(2):"");
+					try {
+					ret= modelClazz.getMethod(methodName);
+					}
+					catch (NoSuchMethodException | SecurityException e3) {
+						//do nothing
+					}
+					
+				}
 			}
 		}
 		if(ret!=null)
