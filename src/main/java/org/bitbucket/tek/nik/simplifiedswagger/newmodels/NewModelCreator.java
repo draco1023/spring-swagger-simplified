@@ -3,6 +3,7 @@ package org.bitbucket.tek.nik.simplifiedswagger.newmodels;
 import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
@@ -260,7 +261,7 @@ private void addNonGenericModels(Map<String, Model> definitions) {
 			if(declaredMethod.getParameterTypes().length==0 && declaredMethod.getReturnType()!=void.class)
 			{
 				String declaredMethodName = declaredMethod.getName();
-				if(declaredMethodName.startsWith("get") && declaredMethodName.length()>"get".length())
+				if(declaredMethodName.startsWith("get") && declaredMethodName.length()>"get".length()  && (!Modifier.isStatic(declaredMethod.getModifiers())))
 				{
 					char[] charArray = declaredMethodName.substring("get".length()).toCharArray();
 					charArray[0]=Character.toLowerCase(charArray[0]);
@@ -289,7 +290,7 @@ private void addNonGenericModels(Map<String, Model> definitions) {
 						propertiesMap.put(String.valueOf(charArray),declaredMethod.getReturnType());
 					}*/
 				}
-				else if(declaredMethodName.startsWith("is") && declaredMethodName.length()>"is".length())
+				else if(declaredMethodName.startsWith("is") && declaredMethodName.length()>"is".length() && (!Modifier.isStatic(declaredMethod.getModifiers())))
 				{
 					char[] charArray = declaredMethodName.substring("is".length()).toCharArray();
 					charArray[0]=Character.toLowerCase(charArray[0]);
@@ -317,7 +318,7 @@ private void addNonGenericModels(Map<String, Model> definitions) {
 		
 		Field[] declaredFields = clazz.getDeclaredFields();
 		for (Field field : declaredFields) {
-			if(field.getName().equals("class")||field.getName().equals("type"))
+			if(field.getName().equals("class")||field.getName().equals("type")||Modifier.isStatic(field.getModifiers()))
 			{
 				continue;
 			}
@@ -540,7 +541,7 @@ private void addGenericModels(Map<String, Model> definitions) {
 				if(declaredMethod.getParameterTypes().length==0 && declaredMethod.getReturnType()!=void.class)
 				{
 					String declaredMethodName = declaredMethod.getName();
-					if(declaredMethodName.startsWith("get") && declaredMethodName.length()>"get".length())
+					if(declaredMethodName.startsWith("get") && declaredMethodName.length()>"get".length()  && (!Modifier.isStatic(declaredMethod.getModifiers())))
 					{
 						char[] charArray = declaredMethodName.substring("get".length()).toCharArray();
 						charArray[0]=Character.toLowerCase(charArray[0]);
@@ -578,7 +579,8 @@ private void addGenericModels(Map<String, Model> definitions) {
 							propertiesMap.put(String.valueOf(charArray),declaredMethod.getReturnType());
 						}*/
 					}
-					else if(declaredMethodName.startsWith("is") && declaredMethodName.length()>"is".length())
+					else if(declaredMethodName.startsWith("is") && declaredMethodName.length()>"is".length() && (!Modifier.isStatic(declaredMethod.getModifiers())))
+					
 					{
 						char[] charArray = declaredMethodName.substring("is".length()).toCharArray();
 						charArray[0]=Character.toLowerCase(charArray[0]);
@@ -616,7 +618,7 @@ private void addGenericModels(Map<String, Model> definitions) {
 			
 			Field[] declaredFields = clazz.getDeclaredFields();
 			for (Field field : declaredFields) {
-				if(field.getName().equals("class")||field.getName().equals("type"))
+				if(field.getName().equals("class")||field.getName().equals("type")||Modifier.isStatic(field.getModifiers()))
 				{
 					continue;
 				}
