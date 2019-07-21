@@ -59,7 +59,13 @@
 			<scope>test</scope>
 		</dependency>
 
-
+		<!-- 
+		uncomment during development if it helps
+			<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-devtools</artifactId>
+			<optional>true</optional>
+		</dependency> -->
 
 	</dependencies>
 	<developers>
