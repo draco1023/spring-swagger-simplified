@@ -36,7 +36,7 @@ public class ApiModelPropertySwaggerDecorator implements ISwaggerDecorator {
 	 * non generic beans. Will fix this properly when we do the swagger 3 version
 	 * </p>
 	 * ApiModelProperty  attributes that we are trying to ignore are as below:
-	 * <p>
+	 * 
 	 * <ol>
 	 * <li>
 	 * reference() - cant  change what is sensibly set already
@@ -59,7 +59,7 @@ public class ApiModelPropertySwaggerDecorator implements ISwaggerDecorator {
 	 * name - ignored because original spring fox  is ignoring
 	 * </li> 
 	 * </ol>
-	 * </p>
+	 * 
 	 */
 	@Override
 	public void decorateProperty(Property property, Annotation annotation,Class propertyType) {

@@ -182,7 +182,7 @@ public abstract class ParameterizedComponentTypeAddingTemplate {
 	 * depending on whether we targetting array or map.
 	 * We dont set the component type.
 	 * we dont want to do taht because it might be array orlist//set or map
-	 * @return
+	 * @return the model
 	 */
 	protected abstract  Model newModelForOuterContainer();
 
