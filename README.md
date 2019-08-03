@@ -60,7 +60,20 @@ causes this error.
 ###### causes below response
 ![Enriched swagger xml response](images/xmlnoerror1.png "Enriched swagger corresponding response")
   
+##### Controller Advice detection in extra features in simplified-swagger-extra-demo
+###### Try ExceptionConceptController.java  
+![regular-swagger-extra-demo will cause this](images/problem.png "Regular swagger extra demo")
+In simplified-swagger-extra-demo you wont have this problem because it detects the controller advices and prepares the needed Model without extra effort.
 
+##### @Bean ApiInfo apiInfo()
+###### Using regular swagger  
+![regular-swagger-demo, regular-swagger-extra-demo, oauth-resource-server-with-swagger will cause this](images/apiInforegular.png "Regular swagger is unable to show apiInfo correctly")  
+See https://github.com/swagger-api/swagger-core/issues/2832
+###### Using spring-swagger-simplified  
+Maven dependency spring-swagger-simplified[1.0.3] solves this apiInfo issue.
+![simplified-swagger-demo will cause this](images/apiInfo1.png "Simplified swagger is able to show apiInfo correctly")
+![simplified-swagger-extra-demo will cause this](images/apiInfo2.png "Simplified swagger is able to show apiInfo correctly")
+![oauth-resource-server-with-simplified-swagger will cause this](images/apiInfo3.png "Simplified swagger is able to show apiInfo correctly")
 
 ##### General Note on validations
 * The library only tries to ensure the annotations get used properly in the generated swagger specs. The actual validation is executed by the underlying framework that processes the annotations at runtime. That said there are adequate illustrative examples provided.
@@ -96,23 +109,26 @@ If we determine a field must be required because of say @NotNull we prevent appl
 
 
 ### How do I get set up? ###
-* Note: spring-swagger-simplified Organizes the beans using the spring bean names in the swagger ui.  
 
-#### Demo of the basics ####  
 * clone the repository git clone https://tek-nik@bitbucket.org/tek-nik/simplified-swagger-examples.git
 * Run mvn clean package  in master branch.
-* run java -jar simplified-swagger-demo/target/simplified-swagger-demo-1.0.3-SNAPSHOT.jarr
+
+Note: spring-swagger-simplified Organizes the beans using the spring bean names in the swagger ui. 
+
+#### Demo of the basics ####  
+
+* run java -jar basic-examples/simplified-swagger-demo/target/simplified-swagger-demo.jar
 * check using http://localhost:8080/api/swagger-ui.html
-* run java -jar regular-swagger-demo/target/regular-swagger-demo-1.0.3-SNAPSHOT.jar
+* run java -jar basic-examples/regular-swagger-demo/target/regular-swagger-demo.jar
 * check using http://localhost:8081/api/swagger-ui.html
 *  __Compare the two and hope you will find the simplified-swagger-demo useful__
  
  
 #### Demo of the extra features ####    
 
-* run java -jar simplified-swagger-extra-demo/target/simplified-swagger-extra-demo-1.0.3-SNAPSHOT.jar  
+* run java -jar basic-examples/simplified-swagger-extra-demo/target/simplified-swagger-extra-demo.jar  
 * check using http://localhost:8082/api/swagger-ui.html  
-* run java -jar regular-swagger-extra-demo/target/regular-swagger-extra-demo-1.0.3-SNAPSHOT.jar  
+* run java -jar basic-examples/regular-swagger-extra-demo/target/regular-swagger-extra-demo.jar  
 * check using http://localhost:8083/api/swagger-ui.html  
 * __Compare the two and hope you will find the simplified-swagger-extra-demo useful__  
 
@@ -125,7 +141,26 @@ Extra Features Provided:
 * Swagger security - especially how to inject header based tokens when making requests via swagger ui 
 * For these features read simplified-swagger-examples\simplified-swagger-extra-demo\src\main\java\hello\SwaggerConfig.java and implified-swagger-examples\regular-swagger-extra-demo\src\main\java\hello\SwaggerConfig.java, regular-swagger-extra-demo\src\main\java\hello\GlobalControllerAdvice.java,  simplified-swagger-extra-demo\src\main\java\hello\GlobalControllerAdvice.java.  
 Try out hello\controllers\ExampleApiOperationController.java and hello\controllers\ExceptionConceptController.java
-* Oauth is not yet demonstrated
+
+
+
+#### Demo of the oauth example ####    
+* run java -jar oauth-example/oauth-authorization-server/target/oauth-authorization-server.jar
+* run java -jar oauth-example/oauth-resource-server-with-simplified-swagger/target/oauth-resource-server-with-simplified-swagger.jar   
+* check using http://localhost:8085/spring-security-oauth-resource/swagger-ui.html  
+* run java -jar oauth-example/oauth-resource-server-with-swagger/target/oauth-resource-server-with-swagger.jar  
+* check using http://localhost:8086/spring-security-oauth-resource/swagger-ui.html  
+* Important Note: For bar_r_w you must provide barClientIdPassword as clientId. ClientId for the remaining prompts can be left at fooClientIdPassword. On the 
+* __Compare the two and hope you will find the oauth-resource-server-with-simplified-swagger useful__  
+
+
+Oauth example Provided:  
+* The Oauth example borrows from and slightly modifies examples provided by baeldung and is mentioned in references.
+* It seeks to MAINLY showcase the value adds of spring-swagger-simplified maven jar
+* It also additionally Demonstrates global exception handling  
+* @ControllerAdvice detection (only in simplified swagger)  
+* Global setting of responses using SwaggerConfig 
+
 
 
 ### References ###
@@ -140,11 +175,13 @@ Try out hello\controllers\ExampleApiOperationController.java and hello\controlle
 
 ### TODO Next (Not necessarily in same order)###
 
-* Have a Oauth Demo  
 * Improve handling of @ApiModelProperty for non generic beans  
 * This has been demonstrated for spring boot and spring 4. Also demonstrate for spring 5 (at least without router functions and handler i.e. when using @RestController).   
 * Maybe provide support for spring rest data jpa.
 * Provide swagger 3 spring fox implementation
+
+
+
 
 
 
