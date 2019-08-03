@@ -51,7 +51,7 @@ public class ApiOperationSwaggerDecorator implements ISwaggerDecorator {
 	/**
 	 * 
 	 * ApiOperation attributes that have been ignored are as below:
-	 * <p>
+	 * 
 	 * <ol>
 	 * 
 	 * 
@@ -78,7 +78,7 @@ public class ApiOperationSwaggerDecorator implements ISwaggerDecorator {
 	 * responseReference - ignored because original spring fox  is ignoring
 	 * </li> 
 	 * </ol>
-	 * </p>
+	 * 
 	 */
 	@Override
 	public void decorateOperation(Operation operation, Annotation annotation, Method method, NewModelCreator newModelCreator) {
