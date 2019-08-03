@@ -7,7 +7,7 @@ import io.swagger.models.Model;
 public abstract class OuterContainer {
 	boolean loaded=false;
 	private String ref;
-	private Model schema;
+	protected Model schema;
 	private Object actual;
 	private boolean builtSchema;
 	public boolean isBuiltSchema() {

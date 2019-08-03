@@ -2,14 +2,19 @@ package org.bitbucket.tek.nik.simplifiedswagger;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.lang.reflect.WildcardType;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -18,23 +23,32 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
+import javax.annotation.PostConstruct;
+
 import org.bitbucket.tek.nik.simplifiedswagger.exception.SimplifiedSwaggerException;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ModelOrRefBuilder;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.OuterContainer;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ParameterContainer;
+import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ParameterizedComponentKeyBuilder;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ParameterizedComponentKeySymbols;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ResponseContainer;
 import org.bitbucket.tek.nik.simplifiedswagger.newmodels.NewModelCreator;
+import org.bitbucket.tek.nik.simplifiedswagger.optracker.OperationTracker;
+import org.bitbucket.tek.nik.simplifiedswagger.optracker.OperationTrackerData;
 import org.bitbucket.tek.nik.simplifiedswagger.swaggerdecorators.ISwaggerDecorator;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.ClassUtils;
+import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -48,17 +62,25 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.google.common.base.Predicate;
+
+import io.swagger.annotations.ApiParam;
+
 import io.swagger.models.ExternalDocs;
 import io.swagger.models.Info;
+import io.swagger.models.License;
 import io.swagger.models.Model;
 import io.swagger.models.Operation;
 import io.swagger.models.Path;
+import io.swagger.models.RefModel;
+import io.swagger.models.RefResponse;
 import io.swagger.models.Response;
 import io.swagger.models.Scheme;
 import io.swagger.models.SecurityRequirement;
 import io.swagger.models.Swagger;
 import io.swagger.models.Tag;
 import io.swagger.models.auth.SecuritySchemeDefinition;
+import io.swagger.models.parameters.AbstractSerializableParameter;
 import io.swagger.models.parameters.BodyParameter;
 import io.swagger.models.parameters.CookieParameter;
 import io.swagger.models.parameters.FormParameter;
@@ -73,17 +95,39 @@ import io.swagger.models.properties.DateTimeProperty;
 import io.swagger.models.properties.Property;
 import io.swagger.models.properties.RefProperty;
 import io.swagger.models.properties.StringProperty;
+import springfox.documentation.builders.ResponseMessageBuilder;
+import springfox.documentation.schema.ModelReference;
+import springfox.documentation.service.ApiInfo;
+import springfox.documentation.service.AuthorizationScope;
+import springfox.documentation.service.Contact;
 import springfox.documentation.service.Documentation;
+import springfox.documentation.service.ResponseMessage;
+import springfox.documentation.service.SecurityReference;
+import springfox.documentation.service.SecurityScheme;
+import springfox.documentation.spi.service.contexts.SecurityContext;
+import springfox.documentation.spring.web.plugins.Docket;
 import springfox.documentation.swagger2.mappers.ServiceModelToSwagger2MapperImpl;
 
 public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceModelToSwagger2MapperImpl {
 
+	
+	
+	private String[] constrollersToIgnore= {"org.springframework.boot.autoconfigure.web.servlet.error.BasicErrorController",
+			springfox.documentation.swagger.web.ApiResourceController.class.getName()};
+	private static final String[] NOBODYMETHODTYPES= sortArray(new String[]{"get", "delete"});
+	private ParameterResolver parameterResolver= new ParameterResolver(this);
 	@Autowired
 	private ApplicationContext context;
 	
-
-
 	
+	@Autowired( )
+	Docket docket;
+	
+	@Autowired( required=false)
+	ApiInfo apiInfo;
+	
+	private boolean applyDefaultResponseMessages;
+
 	@Autowired
 	private ListableBeanFactory listableBeanFactory;
 	
@@ -91,19 +135,55 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 	boolean showUnMappedAnnotations;
 	
 	private static final Class[] requestMappingTypes= {RequestMapping.class, GetMapping.class, PostMapping.class, PutMapping.class, PatchMapping.class, DeleteMapping.class};
+	private Map<RequestMethod, List<ResponseMessage>> customGlobalResponseMessages;
+	private List<? extends SecurityScheme> securitySchemes;
+	private  List<SecurityContext> securityContexts;
+	@PostConstruct
+	private void init()
+	{
+		
+		applyDefaultResponseMessages = applyDefaultResponseMessages();
+		customGlobalResponseMessages = (Map<RequestMethod, List<ResponseMessage>>) extractDocketFieldInternal("responseMessages");
+		securitySchemes=(List<? extends SecurityScheme>) extractDocketFieldInternal("securitySchemes");
+		securityContexts=(List<SecurityContext>) extractDocketFieldInternal("securityContexts");
+	}
 
-	private NewModelCreator newModelCreator;
+	
+private Object extractDocketFieldInternal(String fieldName) {
+	return extractObjectsField(fieldName, docket);
+}
+
+
+private Object extractObjectsField(String fieldName, Object object) {
+	Object ret=null;
+		if(object!=null)
+		{
+			try {
+				Field field = object.getClass().getDeclaredField(fieldName);
+				field.setAccessible(true);
+				ret = field.get(object);
+				field.setAccessible(false);
+			} catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
+				throw new SimplifiedSwaggerException("could not introspect object "+object.getClass().getName(), e);
+			}
+		}
+		return ret;
+}
 
 	@Override
 	public Swagger mapDocumentation(Documentation from) {
+		
+		OperationTracker operationTracker= new OperationTracker();
 		
 		
 			
 			Swagger swagger = super.mapDocumentation(from);
 			Info info = swagger.getInfo();
+			addApiInfo(info);
 			String basePath = swagger.getBasePath();
 			Map<String, Model> definitions = swagger.getDefinitions();
-			newModelCreator= new NewModelCreator(definitions);
+			
+			SimplifiedSwaggerData simplifiedSwaggerData = new SimplifiedSwaggerData(definitions);
 			ExternalDocs externalDocs = swagger.getExternalDocs();
 			String host = swagger.getHost();
 			List<String> consumes = swagger.getConsumes();
@@ -121,6 +201,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 			paths.clear();
 			tags.clear();
 			removeGenricModels(definitions);
+			introspectConrollerAdvices(simplifiedSwaggerData.getNewModelCreator());
 			Map<String, List<MethodAndTag>> pathToMethodListMap = buildPathToMethodAndTagMap(tags);
 			Set<String> keySet = pathToMethodListMap.keySet();
 			for (String key : keySet) {
@@ -129,18 +210,27 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 				
 				List<MethodAndTag> list = pathToMethodListMap.get(key);
 				for (MethodAndTag methdoAndTag : list) {
-					 buildOperation(path, methdoAndTag, key);
+					 buildOperation(path, methdoAndTag, key, definitions, operationTracker, simplifiedSwaggerData);
 					
 					
 				}
 			}
-			newModelCreator.build();
-			transformDefinitions(definitions);
-			adjustExamples(definitions);
+			
+			fixGenericReferencesInNonGenericBeans(definitions, simplifiedSwaggerData.getNewModelCreator());
+			simplifiedSwaggerData.getNewModelCreator().build();
+			transformDefinitions(definitions, simplifiedSwaggerData);
+			adjustExamples(definitions, simplifiedSwaggerData.getNewModelCreator());
+			
+			expandResolvableParameters(paths, definitions, operationTracker, simplifiedSwaggerData.getNewModelCreator());
+			removeHiddentParameters(paths, definitions, operationTracker);
+			operationTracker.cleanup();
+			transformDefinitionsUsingApi(definitions, simplifiedSwaggerData);
+			
+			
 			
 			if(showUnMappedAnnotations)
 			{
-				System.err.println("unMappedAnnotations=" + unMappedAnnotations);
+				System.err.println("unMappedAnnotations=" + simplifiedSwaggerData.getUnMappedAnnotations());
 			}
 			//unused code below will remove later. commenting out for now
 			//newModelCreator.tempShowBlocked();
@@ -152,8 +242,398 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 		
 		
 	}
+
+
+	private void addApiInfo(Info info) {
+		if(apiInfo!=null)
+		{
+			if(apiInfo.getTitle()!=null && apiInfo.getTitle().length()>0)
+			{
+				info.setTitle(apiInfo.getTitle());
+			}
+			if(apiInfo.getDescription()!=null && apiInfo.getDescription().length()>0)
+			{
+				info.setDescription(apiInfo.getDescription());
+			}
+			License license = new License();
+			license.setName(null);
+			license.setUrl(null);
+			if(apiInfo.getLicense()!=null && apiInfo.getLicense().length()>0)
+			{
+				license.setName(apiInfo.getLicense());
+			}
+			if(apiInfo.getLicenseUrl()!=null && apiInfo.getLicenseUrl().length()>0)
+			{
+				license.setUrl(apiInfo.getLicenseUrl());
+			}
+			info.setLicense((license.getName()==null && license.getUrl()==null)?null:license);
+			if(apiInfo.getLicenseUrl()!=null && apiInfo.getLicenseUrl().length()>0)
+			{
+				info.setTermsOfService(apiInfo.getLicenseUrl());
+			}
+			else
+			{
+				info.setTermsOfService(null);
+			}
+			if(apiInfo.getVersion()!=null && apiInfo.getVersion().length()>0)
+			{
+				info.setVersion(apiInfo.getVersion());
+			}
+			else
+			{
+				info.setVersion(null);
+			}
+			if(apiInfo.getContact()!=null)
+			{
+				io.swagger.models.Contact contactForInfo = new io.swagger.models.Contact();
+				if(apiInfo.getContact().getName()!=null && apiInfo.getContact().getName().length()>0)
+				{
+					contactForInfo.setName(apiInfo.getContact().getName());
+				}
+				if(apiInfo.getContact().getEmail()!=null && apiInfo.getContact().getEmail().length()>0)
+				{
+					contactForInfo.setEmail(apiInfo.getContact().getEmail());
+				}
+				if(apiInfo.getContact().getUrl()!=null && apiInfo.getContact().getUrl().length()>0)
+				{
+					contactForInfo.setUrl(apiInfo.getContact().getUrl());
+				}
+				info.setContact((contactForInfo.getName()==null && contactForInfo.getUrl()==null && contactForInfo.getEmail()==null)?null:contactForInfo);
+				
+				
+			}
+			else
+			{
+				info.setContact(null);
+			}
+			
+		}
+		else
+		{
+			info.setLicense(null);
+			info.setTermsOfService(null);
+			info.setVersion(null);
+			info.setContact(null);
+		}
+	}
+
+
 	
-	private void removeGenricModels(Map<String, Model> definitions) {
+
+
+	/**
+	 * no need for this method to rcurse diurectly
+	 */
+
+	private void fixGenericReferencesInNonGenericBeans(Map<String, Model> definitions, NewModelCreator newModelCreator) {
+		Set<String> keySet = definitions.keySet();
+		for (String definitionsKey : keySet) 
+		{
+			if(!definitionsKey.contains(ParameterizedComponentKeySymbols.LEFT))
+			{
+				Type modelClazzType = getClassDefinition(definitionsKey, newModelCreator);
+				Class modelClazz=(Class) modelClazzType;
+				//we dont want to go into what we consider basic types
+				//for all the basic types we should have a mapping
+				if(BasicMappingHolder.INSTANCE.getMappedByType(modelClazz.getName())==null)
+				{
+					Model model = definitions.get(definitionsKey);
+					Map<String, Property> properties = model.getProperties();
+					if(properties!=null)
+					{
+						Set<String> propertiesKeySet = properties.keySet();
+						for (String propertiesKey : propertiesKeySet) 
+						{
+							Property property = properties.get(propertiesKey);
+							if(property instanceof RefProperty)
+							{
+								RefProperty refProperty=(RefProperty) property;
+								
+								Method getter=getDeclaredGetter(modelClazz, property.getName());
+								Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey, getter);
+								Class fieldMethodType = getFieldMethodType(field, getter);
+								Type fieldMethodGenericType = getFieldMethodGenericType(field, getter);
+								
+								if(fieldMethodGenericType instanceof ParameterizedType)
+								{
+									ParameterizedType parameterizedType= (ParameterizedType) fieldMethodGenericType;
+									Model parameterizedPropertiesModel = definitions.get(refProperty.getSimpleRef());
+									if(parameterizedPropertiesModel==null)
+									{
+										//compute new 
+										String newKey = ParameterizedComponentKeyBuilder.buildKeyForParameterizedComponentType(parameterizedType);
+										refProperty.set$ref(newKey);
+										newModelCreator.addIfParemeterizedType(parameterizedType, false);
+
+									}
+								}
+								
+								
+								
+							}
+							else if(property instanceof ArrayProperty)
+							{
+								ArrayProperty arrayProperty=(ArrayProperty) property;
+								Property items = arrayProperty.getItems();
+								
+								if(items instanceof RefProperty)
+								{
+									RefProperty refProperty=(RefProperty) items;
+									Method getter=getDeclaredGetter(modelClazz, property.getName());
+									Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey,  getter);
+									Class fieldMethodType = getFieldMethodType(field, getter);
+									Type fieldMethodGenericType1=getFieldMethodGenericType(field, getter);
+									Type compaonentType=null;
+									if(fieldMethodGenericType1 instanceof GenericArrayType)
+									{
+										GenericArrayType genericArrayType=(java.lang.reflect.GenericArrayType) fieldMethodGenericType1;
+										compaonentType=genericArrayType.getGenericComponentType();
+									}
+									else if(fieldMethodType.isArray())
+									{
+										compaonentType=fieldMethodType.getComponentType();
+									}
+									else //must be list or set
+									{
+										compaonentType=getParameteerizedTypeIfFieldMethodTypeListOrSet(
+												field, getter, fieldMethodType);
+									}
+									if(compaonentType!=null)
+									{
+										
+										if(compaonentType instanceof WildcardType)
+										{
+											WildcardType wildcardType=(WildcardType) compaonentType;
+											if(wildcardType.getUpperBounds()!=null && wildcardType.getUpperBounds().length>0)
+											{
+												compaonentType= wildcardType.getUpperBounds()[0];
+											}
+											//so do nothing
+											//if needed later add a logic to register it
+											//or reregister it
+											
+										}
+										if(compaonentType instanceof ParameterizedType)
+										{
+											ParameterizedType parameterizedType= (ParameterizedType) compaonentType;
+											Model parameterizedPropertiesModel = definitions.get(refProperty.getSimpleRef());
+											//if(parameterizedPropertiesModel==null)//its having wrong assignments//best to replace
+											{
+												//compute new 
+												String newKey = ParameterizedComponentKeyBuilder.buildKeyForParameterizedComponentType(parameterizedType);
+												refProperty.set$ref(newKey);
+												newModelCreator.addIfParemeterizedType(parameterizedType, false);
+
+											}
+										}
+									}
+									else
+									{
+										throw new SimplifiedSwaggerException(propertiesKey+" is an array  in "+modelClazz.getName() +" but could not find type of row");
+									}
+									
+								}
+								else
+								{
+									//if not RefProperty we need not do
+								}
+								
+								
+							
+								
+								
+							}
+						}
+					}
+
+						
+
+			
+							
+				}
+			}
+				
+				
+			
+		}
+		
+	}
+
+
+
+	private void expandResolvableParameters(Map<String, Path> paths, 
+			Map<String, Model> definitions, OperationTracker operationTracker, NewModelCreator newModelCreator) {
+		Set<String> pathKeys = paths.keySet();
+		for (String pathKey : pathKeys) {
+			Path path = paths.get(pathKey);
+			List<Operation> operations = path.getOperations();
+			for (Operation operation : operations) {
+				final OperationTrackerData operationTrackerData = operationTracker.get(operation);
+				final ApiParam[] originalMethodApiParams = operationTrackerData.getApiParams();
+				List<Parameter> opParameters = operation.getParameters();
+				boolean preferQueryToFormParameter=operationTrackerData.preferQueryToFormParameter();
+				
+				for (int i = 0; i < opParameters.size(); i++) 
+				{
+					Parameter parameter=opParameters.get(i);
+					ApiParam originalMethodApiParam=originalMethodApiParams[i];
+					
+					if(parameter instanceof BodyParameter)
+					{
+						BodyParameter tempBodyParameter=(BodyParameter) parameter;
+						Boolean needsResolving=(Boolean) tempBodyParameter.getVendorExtensions().get("toresolve");
+						if(needsResolving!=null && needsResolving.booleanValue())
+						{
+							List<Parameter> resolvedParmeters = expandTempBodyParameters(originalMethodApiParam, 
+									tempBodyParameter, definitions, preferQueryToFormParameter, newModelCreator);
+							opParameters.remove(i);
+							
+							opParameters.addAll(i, resolvedParmeters);
+							i=i+resolvedParmeters.size();
+							
+							
+						}
+					}
+					else
+					{
+						if(originalMethodApiParam!=null)
+						{
+							parameter.setDescription(originalMethodApiParam.value());
+							parameter.setAccess(originalMethodApiParam.access());
+							//calling readonly on a simple parameter is of no benefit 
+							//cannot carry out implied removal from response if part of response
+							parameter.setReadOnly(originalMethodApiParam.readOnly());
+							
+							if(parameter instanceof AbstractSerializableParameter)
+							{
+								AbstractSerializableParameter asp=(AbstractSerializableParameter) parameter;
+								asp.setDefaultValue(originalMethodApiParam.defaultValue());
+								asp.setExample(originalMethodApiParam.example());
+								setEnumValues(asp, originalMethodApiParam);
+							}
+							if(!parameter.getRequired() && originalMethodApiParam.hidden())
+							{
+								parameter.getVendorExtensions().put("hidden", true);
+							}
+														
+							
+							//
+							
+							
+							originalMethodApiParam.allowEmptyValue();
+							originalMethodApiParam.collectionFormat();
+							
+							
+							originalMethodApiParam.examples();
+							originalMethodApiParam.format();
+							
+							originalMethodApiParam.required();
+							originalMethodApiParam.type();
+							
+						}
+						parameterResolver.describeParameter(parameter);
+					}
+					/*
+					 * For now because we are using only vendor extensions this will work.
+					 * Will improvise later when we stop using vendor extensions
+					 */
+					
+					
+				}
+				
+			}
+		}
+	}
+
+
+
+
+
+
+	
+	private void removeHiddentParameters(Map<String, Path> paths, 
+			Map<String, Model> definitions, OperationTracker operationTracker) {
+		Set<String> pathKeys = paths.keySet();
+		for (String pathKey : pathKeys) {
+			Path path = paths.get(pathKey);
+			List<Operation> operations = path.getOperations();
+			for (Operation operation : operations) {
+				final OperationTrackerData operationTrackerData = operationTracker.get(operation);
+				final ApiParam[] originalMethodApiParams = operationTrackerData.getApiParams();
+				List<Parameter> opParameters = operation.getParameters();
+				for (int i = 0; i < opParameters.size(); i++) 
+				{
+					Parameter parameter=opParameters.get(i);
+					Boolean hidden=(Boolean) parameter.getVendorExtensions().get("hidden");
+					if(hidden!=null && hidden.booleanValue())
+					{
+						opParameters.remove(i);
+						i--;
+					}
+				}
+			}
+		}
+		
+	}
+
+
+
+	private void setEnumValues(AbstractSerializableParameter asp, ApiParam apiParam) {
+		
+		
+		final List existingEnum = asp.getEnum();
+		
+		//dont change from already set sensibles
+		if(existingEnum==null|| existingEnum.size()==0)
+		{
+			String allowableValues = apiParam.allowableValues();
+			if(allowableValues!=null)
+			{
+				allowableValues=allowableValues.trim();
+				if(allowableValues.length()>0)
+				{
+					//range concept is not being used by original spring fox
+					String[] enumValues = allowableValues.split(",");
+					
+					List<String> newEnum = new ArrayList<>();
+					for (String string : enumValues) {
+						if(string!=null )
+						{
+							string=string.trim();
+							if(string.length()>0)
+							{
+								newEnum.add(string);
+							}
+						}
+					}
+					asp.setEnum(newEnum);
+				}
+			}
+		}
+		
+	}
+
+
+
+
+
+	
+
+
+//here must add drill logic which uses .
+	private List<Parameter> expandTempBodyParameters(ApiParam originalMethodApiParam, 
+			BodyParameter tempBodyParameter, Map<String, Model> definitions, boolean preferQueryToFormParam, NewModelCreator newModelCreator) {
+		
+		RefModel schema = (RefModel) tempBodyParameter.getSchema();
+		String simpleRef = schema.getSimpleRef();
+		//makes sense to treat outermost object as required
+		//hence true
+		//if its not true each field within it is not there when the outermost object is not there
+		return parameterResolver.buildNewResolvedParameters( "", definitions, simpleRef, true, preferQueryToFormParam, newModelCreator);
+	}
+
+
+private void removeGenricModels(Map<String, Model> definitions) {
 		Set<String> keySet = definitions.keySet();
 		Set<String> keySetToRemove=new HashSet<>();
 		for (String key : keySet) {
@@ -170,7 +650,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 		
 	}
 	
-	private void adjustExamples(Map<String, Model> definitions) {
+	private void adjustExamples(Map<String, Model> definitions,NewModelCreator newModelCreator) {
 		Set<String> definitionsKeySet = definitions.keySet();
 		for (String definitionsKey : definitionsKeySet) {
 			if(definitionsKey.contains(ParameterizedComponentKeySymbols.LEFT))
@@ -178,7 +658,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 				continue;
 			}
 			Class modelClazz=null;
-			Type modelClazzType = getClassDefinition(definitionsKey);
+			Type modelClazzType = getClassDefinition(definitionsKey, newModelCreator);
 			if(definitionsKey.contains(ParameterizedComponentKeySymbols.LEFT))
 			{
 				if(modelClazzType instanceof ParameterizedType)
@@ -194,29 +674,33 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 			Model model = definitions.get(definitionsKey);
 			
 			Map<String, Property> properties = model.getProperties();
-			Set<String> propertiesKeySet = properties.keySet();
-			for (String propertiesKey : propertiesKeySet) {
-				Property property = properties.get(propertiesKey);
-				
-				String name = property.getName();
-				//if(!modelClazz.isEnum())
-				{
-					//you cant put contraints on a setter only getetr or fioeld
-					Method getter=getDeclaredGetter(modelClazz, property);
-					Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey, property, getter);
-					Class fieldMethodType = getFieldMethodType(field, getter);
-					String parameteerizedTypeIfFieldMethodTypeListOrSet = getParameteerizedTypeIfFieldMethodTypeListOrSet(
-							field, getter, fieldMethodType);
-					String mappedType = BasicMappingHolder.INSTANCE.getMappedByType(fieldMethodType.getName());
-					createExampleForBasicTypes(property, fieldMethodType.getName(), mappedType);
+			if(properties!=null)
+			{
+				Set<String> propertiesKeySet = properties.keySet();
+				for (String propertiesKey : propertiesKeySet) {
+					Property property = properties.get(propertiesKey);
 					
-					createExamplesForBasicInArrayIfNeeded(property, 
-							mappedType, 
-							fieldMethodType, 
-							parameteerizedTypeIfFieldMethodTypeListOrSet);
+					String name = property.getName();
+					//if(!modelClazz.isEnum())
+					{
+						//you cant put contraints on a setter only getetr or fioeld
+						Method getter=getDeclaredGetter(modelClazz, property.getName());
+						Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey,  getter);
+						Class fieldMethodType = getFieldMethodType(field, getter);
+						String parameteerizedTypeIfFieldMethodTypeListOrSet = getParameteerizedTypeNameIfFieldMethodTypeListOrSet(
+								field, getter, fieldMethodType);
+						String mappedType = BasicMappingHolder.INSTANCE.getMappedByType(fieldMethodType.getName());
+						createExampleForBasicTypes(property, fieldMethodType.getName(), mappedType);
+						
+						createExamplesForBasicInArrayIfNeeded(property, 
+								mappedType, 
+								fieldMethodType, 
+								parameteerizedTypeIfFieldMethodTypeListOrSet);
+					}
+					
 				}
-				
 			}
+			
 			
 			
 			
@@ -385,12 +869,12 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 	}
 
 
-	private void transformDefinitions(Map<String, Model> definitions) {
+	private void transformDefinitions(Map<String, Model> definitions, SimplifiedSwaggerData simplifiedSwaggerData) {
 		Set<String> definitionsKeySet = definitions.keySet();
 		for (String definitionsKey : definitionsKeySet) {
 			
 			Class modelClazz=null;
-			Type modelClazzType = getClassDefinition(definitionsKey);
+			Type modelClazzType = getClassDefinition(definitionsKey, simplifiedSwaggerData.getNewModelCreator());
 			if(definitionsKey.contains(ParameterizedComponentKeySymbols.LEFT))
 			{
 				if(modelClazzType instanceof ParameterizedType)
@@ -414,7 +898,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 				
 				Annotation[] declaredClassAnnotations = modelClazz.getDeclaredAnnotations();
 				for (Annotation declaredClassAnnotation : declaredClassAnnotations) {
-					handleAnnotatedModel(model, declaredClassAnnotation, modelClazz);
+					handleAnnotatedModel(model, declaredClassAnnotation, modelClazz, simplifiedSwaggerData);
 				}
 				Map<String, Object> modelVendorExtensions = model.getVendorExtensions();
 				if(modelVendorExtensions.size()>0)
@@ -430,70 +914,258 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 					model.setDescription(sb.toString());
 				}
 			
-				
-				Set<String> propertiesKeySet = properties.keySet();
-				for (String propertiesKey : propertiesKeySet) {
-					Property property = properties.get(propertiesKey);
-					String name = property.getName();
+				if(properties!=null)
+				{
+					Set<String> propertiesKeySet = properties.keySet();
+					for (String propertiesKey : propertiesKeySet) {
+						Property property = properties.get(propertiesKey);
+						String name = property.getName();
+						
 					
-				
-					
-					
-					//if(!modelClazz.isEnum())
-					{
-						//you cant put contraints on a setter only getetr or fioeld
-						Method getter=getDeclaredGetter(modelClazz, property);
-						Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey, property, getter);
-						Class fieldMethodType = getFieldMethodType(field, getter);
-						String parameteerizedTypeIfFieldMethodTypeListOrSet = getParameteerizedTypeIfFieldMethodTypeListOrSet(
-								field, getter, fieldMethodType);
-						String mappedType = BasicMappingHolder.INSTANCE.getMappedByType(fieldMethodType.getName());
-						refToBasicIfNeeded(property, mappedType, properties, fieldMethodType);
-						refToBasicInArrayIfNeeded(property, mappedType, properties, fieldMethodType, 
-								parameteerizedTypeIfFieldMethodTypeListOrSet);
-						if(field!=null)
+						
+						
+						//if(!modelClazz.isEnum())
 						{
-							Annotation[] annotations = field.getAnnotations();
-							for (Annotation annotation : annotations) {
-								handleAnnotatedProperty(property, annotation, fieldMethodType);
+							//you cant put contraints on a setter only getetr or fioeld
+							Method getter=getDeclaredGetter(modelClazz, property.getName());
+							Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey,  getter);
+							Class fieldMethodType = getFieldMethodType(field, getter);
+							String parameteerizedTypeIfFieldMethodTypeListOrSet = getParameteerizedTypeNameIfFieldMethodTypeListOrSet(
+									field, getter, fieldMethodType);
+							String mappedType = BasicMappingHolder.INSTANCE.getMappedByType(fieldMethodType.getName());
+							refToBasicIfNeeded(property, mappedType, properties, fieldMethodType,  simplifiedSwaggerData);
+							refToBasicInArrayIfNeeded(property, mappedType, properties, fieldMethodType, 
+									parameteerizedTypeIfFieldMethodTypeListOrSet, simplifiedSwaggerData);
+							if(field!=null)
+							{
+								Annotation[] annotations = field.getAnnotations();
+								//annotationSort(annotations);
+								
+								for (Annotation annotation : annotations) {
+									
+									handleAnnotatedProperty(property, annotation, fieldMethodType, simplifiedSwaggerData);
+								}
+							}
+							if(getter!=null)
+							{
+								Annotation[] annotations = getter.getAnnotations();
+								for (Annotation annotation : annotations) {
+									
+									handleAnnotatedProperty(property, annotation, fieldMethodType, simplifiedSwaggerData);
+								}
 							}
 						}
-						if(getter!=null)
+						
+						if(property instanceof ArrayProperty)
 						{
-							Annotation[] annotations = getter.getAnnotations();
-							for (Annotation annotation : annotations) {
-								handleAnnotatedProperty(property, annotation, fieldMethodType);
+							ArrayProperty arrayProperty=(ArrayProperty) property;
+							String pattern = (String) arrayProperty.getVendorExtensions().get("pattern");
+							if(pattern!=null)
+							{
+								arrayProperty.getItems().getVendorExtensions().put("pattern", pattern);
 							}
+							Boolean notNullArray = (Boolean) arrayProperty.getVendorExtensions().get("notNull");
+							Integer minLengthOfArray=(Integer) arrayProperty.getVendorExtensions().get("minItems");
+							if(notNullArray!=null && notNullArray.booleanValue() && minLengthOfArray!=null && minLengthOfArray.intValue()> 0)
+							{
+								arrayProperty.setRequired(true);
+							}
+							
 						}
+						
+						
+						
 					}
-					
-					if(property instanceof ArrayProperty)
-					{
-						ArrayProperty arrayProperty=(ArrayProperty) property;
-						String pattern = (String) arrayProperty.getVendorExtensions().get("pattern");
-						if(pattern!=null)
-						{
-							arrayProperty.getItems().getVendorExtensions().put("pattern", pattern);
-						}
-					}
-					
-					
-					
 				}
+				else
+				{
+					//throw new SimplifiedSwaggerException("why null");
+				}
+			
 			}
 		
 		}
 		
 		
-		for (String definitionsThatCanBeRemovedKey : definitionsThatCanBeRemoved) {
+		for (String definitionsThatCanBeRemovedKey : simplifiedSwaggerData.getDefinitionsThatCanBeRemoved()) {
 			definitions.remove(definitionsThatCanBeRemovedKey);
 		}
 		
 	}
+	
+	void addDescriptionUsingVendorExtensions(
+			Map<String, Object> vendorExtensions, StringBuilder sb) {
+		
+		
+		Set<String> vendorExtensionKeySet = vendorExtensions.keySet();
+		sb.append("                              ");
+		sb.append("                              ");
+		sb.append("                              ");
+		//<h5>more description</h5>");
+		//sb.append("<table><tr><td><h6>more description</h6></td></tr>");
+		//sb.append("<h6>");
+		sb.append("<p><span style='color: green; font-size: 10pt'>");
+		for (String  vendorExtensionKey : vendorExtensionKeySet) {
+			Object object = vendorExtensions.get(vendorExtensionKey);
+			//sb.append("<tr><td><h6>");
+			
+			sb.append(vendorExtensionKey);
+			sb.append(":");
+			sb.append(object.toString());
+			sb.append(", ");
+			//sb.append("</h6></td></tr>");
+			
+		}
+		sb.append("</span></p>");
+	}
+	
+	private void transformDefinitionsUsingApi(Map<String, Model> definitions, SimplifiedSwaggerData simplifiedSwaggerData) {
+		Set<String> definitionsKeySet = definitions.keySet();
+		for (String definitionsKey : definitionsKeySet) {
+			
+			Class modelClazz=null;
+			Type modelClazzType = getClassDefinition(definitionsKey, simplifiedSwaggerData.getNewModelCreator());
+			if(definitionsKey.contains(ParameterizedComponentKeySymbols.LEFT))
+			{
+				if(modelClazzType instanceof ParameterizedType)
+				{
+				ParameterizedType ParameterizedType=(java.lang.reflect.ParameterizedType) modelClazzType;
+				modelClazz = (Class) ParameterizedType.getRawType();
+				}
+			}
+			else if(modelClazzType instanceof Class)
+			{
+				modelClazz=(Class) modelClazzType;
+			}
+			
+			//we dont want to go into what we consider basic types
+			//for all the basic types we should have a mapping
+			if(BasicMappingHolder.INSTANCE.getMappedByType(modelClazz.getName())==null)
+			{
+				Model model = definitions.get(definitionsKey);
+				Map<String, Property> properties = model.getProperties();
+				
+				
+				Annotation[] declaredClassAnnotations = modelClazz.getDeclaredAnnotations();
+				for (Annotation declaredClassAnnotation : declaredClassAnnotations) {
+					//might need a api handling
+					//handleAnnotatedModel(model, declaredClassAnnotation, modelClazz);
+				}
+			
+			
+				if(properties!=null)
+				{
+					Set<String> propertiesKeySet = properties.keySet();
+					String[] propertiesArr= new String[propertiesKeySet.size()];
+					propertiesKeySet.toArray(propertiesArr);
+					for (String propertiesKey : propertiesArr) {
+						Property property = properties.get(propertiesKey);
+						String name = property.getName();
+						
+					
+						
+						
+						//if(!modelClazz.isEnum())
+						{
+							//you cant put contraints on a setter only getetr or fioeld
+							Method getter=getDeclaredGetter(modelClazz, property.getName());
+							Field field = getFieldAfterCheckingWithGetter(modelClazz, propertiesKey,  getter);
+							Class fieldMethodType = getFieldMethodType(field, getter);
+							//String parameteerizedTypeIfFieldMethodTypeListOrSet = getParameteerizedTypeIfFieldMethodTypeListOrSet(
+							//		field, getter, fieldMethodType);
+							//String mappedType = BasicMappingHolder.INSTANCE.getMappedByType(fieldMethodType.getName());
+							//refToBasicIfNeeded(property, mappedType, properties, fieldMethodType);
+							//refToBasicInArrayIfNeeded(property, mappedType, properties, fieldMethodType, 
+									//parameteerizedTypeIfFieldMethodTypeListOrSet);
+							if(field!=null)
+							{
+								Annotation[] annotations = field.getAnnotations();
+								//annotationSort(annotations);
+								
+								for (Annotation annotation : annotations) {
+									
+									handleAnnotatedApiProperty(property, annotation, fieldMethodType, simplifiedSwaggerData);
+								}
+							}
+							if(getter!=null)
+							{
+								Annotation[] annotations = getter.getAnnotations();
+								for (Annotation annotation : annotations) {
+									
+									handleAnnotatedApiProperty(property, annotation, fieldMethodType, simplifiedSwaggerData);
+								}
+							}
+						}
+						
+						/*not needed here
+						 * if(property instanceof ArrayProperty)
+						{
+							ArrayProperty arrayProperty=(ArrayProperty) property;
+							String pattern = (String) arrayProperty.getVendorExtensions().get("pattern");
+							if(pattern!=null)
+							{
+								arrayProperty.getItems().getVendorExtensions().put("pattern", pattern);
+							}
+						}*/
+						
+						Boolean hidden=(Boolean) property.getVendorExtensions().get("hidden");
+						if(hidden!=null && hidden)
+						{
+							properties.remove(propertiesKey);
+						}
+						
+						
+					}
 
-	private Field getFieldAfterCheckingWithGetter(Class modelClazz, String propertiesKey, Property property,
+				}
+				else
+				{
+					//throw new SimplifiedSwaggerException("why null");
+				}
+				
+			}
+		
+		}
+		
+		
+		/*not needed here
+		 * for (String definitionsThatCanBeRemovedKey : definitionsThatCanBeRemoved) {
+			definitions.remove(definitionsThatCanBeRemovedKey);
+		}*/
+		
+	}
+
+
+
+	private void annotationSort(Annotation[] annotations) {
+		Arrays.sort(annotations, new Comparator<Annotation>() {
+
+			@Override
+			public int compare(Annotation o1, Annotation o2) {
+				boolean o1IsSwaggerAnnotation=o1.annotationType().getPackage().getName().equals(SwaggerDecoratorConstants.SWAGGER_ANNOTATION_PACKAGE);
+				boolean o2IsSwaggerAnnotation=o2.annotationType().getPackage().getName().equals(SwaggerDecoratorConstants.SWAGGER_ANNOTATION_PACKAGE);
+				int ret=0;
+				if(o1IsSwaggerAnnotation && (!o2IsSwaggerAnnotation))
+				{
+					ret=1;
+				}
+				else if(o2IsSwaggerAnnotation && (!o1IsSwaggerAnnotation))
+				{
+					ret=-1;
+				}
+				return ret;
+			}
+			
+		});
+	}
+
+	
+
+
+
+	public Field getFieldAfterCheckingWithGetter(Class modelClazz, String propertiesKey, 
 			Method getter) {
-		Field field = getDeclaredField(modelClazz, property);
+		Field field = getDeclaredField(modelClazz, propertiesKey);
 		if(field==null && getter==null)
 		{
 			throw new SimplifiedSwaggerException("could not find getter or field for "+propertiesKey+" in  "+modelClazz.getName());
@@ -509,13 +1181,14 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 		return field;
 	}
 
-	private String getParameteerizedTypeIfFieldMethodTypeListOrSet(Field field, Method getter, Class fieldMethodType) {
-		String parameteerizedTypeIfFieldMethodTypeListOrSet =null;
+	
+	private Type getParameteerizedTypeIfFieldMethodTypeListOrSet(Field field, Method getter, Class fieldMethodType) {
+		Type parameteerizedTypeIfFieldMethodTypeListOrSet =null;
 		if(field!=null)
 		{
 
 			parameteerizedTypeIfFieldMethodTypeListOrSet = 
-					getParameterizedTypeIfListOrSet(field.getGenericType(),
+					getParameterizedTypIfListOrSet(field.getGenericType(),
 					fieldMethodType);
 			
 			
@@ -524,13 +1197,33 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 		{
 
 			parameteerizedTypeIfFieldMethodTypeListOrSet = 
-					getParameterizedTypeIfListOrSet(getter.getGenericReturnType(),
+					getParameterizedTypIfListOrSet(getter.getGenericReturnType(),
+					fieldMethodType);
+		}
+		return parameteerizedTypeIfFieldMethodTypeListOrSet;
+	}
+	private String getParameteerizedTypeNameIfFieldMethodTypeListOrSet(Field field, Method getter, Class fieldMethodType) {
+		String parameteerizedTypeIfFieldMethodTypeListOrSet =null;
+		if(field!=null)
+		{
+
+			parameteerizedTypeIfFieldMethodTypeListOrSet = 
+					getParameterizedTypeNameIfListOrSet(field.getGenericType(),
+					fieldMethodType);
+			
+			
+		}
+		if(getter!=null)
+		{
+
+			parameteerizedTypeIfFieldMethodTypeListOrSet = 
+					getParameterizedTypeNameIfListOrSet(getter.getGenericReturnType(),
 					fieldMethodType);
 		}
 		return parameteerizedTypeIfFieldMethodTypeListOrSet;
 	}
 
-	private Class getFieldMethodType(Field field, Method getter) {
+	public Class getFieldMethodType(Field field, Method getter) {
 		Class fieldMethodType=null;
 		
 		if(field!=null)
@@ -547,11 +1240,38 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 		}
 		return fieldMethodType;
 	}
+	
+	private Type getFieldMethodGenericType(Field field, Method getter) {
+		Type fieldMethodType=null;
+		
+		if(field!=null)
+		{
+			fieldMethodType=field.getGenericType();
+		}
+		if(getter!=null)
+		{
+			fieldMethodType=getter.getGenericReturnType();
+			
+		}
+		return fieldMethodType;
+	}
+	
+	
 
 
-	private String getParameterizedTypeIfListOrSet(Type genericType, Class fieldMethodType) {
+	private String getParameterizedTypeNameIfListOrSet(Type genericType, Class fieldMethodType) {
 		String parameteerizedTypeIfFieldMethodTypeListOrSet=null;
-		if(List.class.isAssignableFrom(fieldMethodType)||Set.class.isAssignableFrom(fieldMethodType))
+		Type type = getParameterizedTypIfListOrSet(genericType, fieldMethodType);
+		if(type!=null)
+		{
+			parameteerizedTypeIfFieldMethodTypeListOrSet=type.getTypeName();
+		}
+		return parameteerizedTypeIfFieldMethodTypeListOrSet;
+	}
+	
+	private Type getParameterizedTypIfListOrSet(Type genericType, Class fieldMethodType) {
+		Type parameteerizedTypeIfFieldMethodTypeListOrSet=null;
+		if(List.class.isAssignableFrom(fieldMethodType)||Set.class.isAssignableFrom(fieldMethodType)||Collection.class==fieldMethodType)
 		{
 			
 			if(genericType instanceof ParameterizedType)
@@ -560,7 +1280,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 				Type[] actualTypeArguments = pt.getActualTypeArguments();
 				if(actualTypeArguments.length==1)
 				{
-					parameteerizedTypeIfFieldMethodTypeListOrSet=actualTypeArguments[0].getTypeName();
+					parameteerizedTypeIfFieldMethodTypeListOrSet=actualTypeArguments[0];
 				}
 				
 			}
@@ -576,7 +1296,8 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 	private void refToBasicInArrayIfNeeded(Property property, 
 			String mappedType, Map<String, Property> properties, 
 			Class fieldMethodType, 
-			String parameteerizedTypeIfFieldMethodTypeListOrSet) {
+			String parameteerizedTypeIfFieldMethodTypeListOrSet,
+			SimplifiedSwaggerData simplifiedSwaggerData) {
 		if(property instanceof ArrayProperty )
 		{
 			ArrayProperty arrayProperty=(ArrayProperty) property;
@@ -603,7 +1324,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 			
 			if(items instanceof RefProperty && mappedComponentType!=null)
 			{
-				Property changed = getChanged(mappedComponentType, (RefProperty) items);
+				Property changed = getChanged(mappedComponentType, (RefProperty) items, simplifiedSwaggerData);
 				if(changed!=null)
 				{
 					arrayProperty.setItems(changed);
@@ -615,7 +1336,8 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 		}
 	}
 	
-	private Property getChanged(String mappedType, RefProperty refProperty)
+	private Property getChanged(String mappedType, RefProperty refProperty, 
+			SimplifiedSwaggerData simplifiedSwaggerData)
 	{
 		Property chnaged=null;
 		
@@ -689,17 +1411,18 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 		if(chnaged!=null)
 		{
 			String get$ref = refProperty.get$ref();
-			definitionsThatCanBeRemoved.add(get$ref.substring("#/definitions/".length()));
+			simplifiedSwaggerData.getDefinitionsThatCanBeRemoved().add(get$ref.substring("#/definitions/".length()));
 			
 		}
 		return chnaged;
 	}
-	private void refToBasicIfNeeded(Property property, String mappedType, Map<String, Property> properties, Class fieldMethodType) {
+	private void refToBasicIfNeeded(Property property, String mappedType, Map<String, Property> properties, 
+			Class fieldMethodType, SimplifiedSwaggerData simplifiedSwaggerData) {
 		if(property instanceof RefProperty && mappedType!=null)
 		{
 			
 			RefProperty refProperty=(RefProperty) property;
-			Property chnaged = getChanged(mappedType, refProperty);
+			Property chnaged = getChanged(mappedType, refProperty,  simplifiedSwaggerData);
 			if(chnaged!=null)
 			{
 				properties.put(chnaged.getName(), chnaged);
@@ -707,21 +1430,21 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 		}
 	}
 	
-	private Set<String> definitionsThatCanBeRemoved= new HashSet<>();
 
 
-	private Field getDeclaredField(Class modelClazz, Property property)  {
+
+	private Field getDeclaredField(Class modelClazz, String propertyName)  {
 		Field ret=null;
 		try {
-			ret= modelClazz.getDeclaredField(property.getName());
+			ret= modelClazz.getDeclaredField(propertyName);
 		} catch (NoSuchFieldException | SecurityException e) {
 			//do nothing here
 		}
 		return ret;
 	}
 	
-	private Method getDeclaredGetter(Class modelClazz, Property property)  {
-		String propertyName = property.getName();
+	public Method getDeclaredGetter(Class modelClazz, String propertyName)  {
+		
 		Method ret=null;
 		try {
 			
@@ -732,7 +1455,20 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 			try {
 				ret= modelClazz.getMethod(methodName);
 			} catch (NoSuchMethodException | SecurityException e1) {
-				//do nothing here
+				methodName="get"+ propertyName.substring(0, 2).toUpperCase()+(propertyName.length()>2?propertyName.substring(2):"");
+				try {
+				ret= modelClazz.getMethod(methodName);
+				}
+				catch (NoSuchMethodException | SecurityException e2) {
+					methodName="is"+ propertyName.substring(0, 2).toUpperCase()+(propertyName.length()>2?propertyName.substring(2):"");
+					try {
+					ret= modelClazz.getMethod(methodName);
+					}
+					catch (NoSuchMethodException | SecurityException e3) {
+						//do nothing
+					}
+					
+				}
 			}
 		}
 		if(ret!=null)
@@ -746,13 +1482,13 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 	}
 
 
-	private Type getClassDefinition(String definitionsKey)  {
+	public Type getClassDefinition(String definitionsKey, NewModelCreator newModelCreator)  {
 		try {
 			
 			Type ret=null;
 			if(definitionsKey.contains(ParameterizedComponentKeySymbols.LEFT))
 			{
-				ret=this.newModelCreator.getParameterizedModelType(definitionsKey);
+				ret=newModelCreator.getParameterizedModelType(definitionsKey);
 			}
 			else
 			{
@@ -769,13 +1505,29 @@ private List<String> buildList(String... args)
 {
 	
 	List<String> ret= new ArrayList<>();
-	for (String row : args) {
-		ret.add(row);
+	if(args!=null)
+	{
+		for (String row : args) {
+			ret.add(row);
+		}
 	}
+	
 	return ret;
 	
 }
-	private void buildOperation(Path path, MethodAndTag methdoAndTag, String key) 
+
+
+
+private static String[] sortArray(String[] input) {
+	Arrays.sort(input);
+	return input;
+}
+
+	private void buildOperation(Path path, 
+			MethodAndTag methdoAndTag, 
+			String key, Map<String, Model> definitions,
+			OperationTracker operationTracker,
+			SimplifiedSwaggerData simplifiedSwaggerData) 
 	{
 		
 		Method method = methdoAndTag.getMethod();
@@ -783,22 +1535,74 @@ private List<String> buildList(String... args)
 		for (String methodType : methodTypes) 
 		{
 			Operation op= new Operation();
+			final OperationTrackerData operationTrackerData = new OperationTrackerData(method, op, methodType);
+			operationTracker.add(operationTrackerData);
 			Annotation matchedRequestMapping = methdoAndTag.getMatchedRequestMapping();
 			
 			op.setTags(buildList(methdoAndTag.getTag().getName()));
-			path.set(methodType, op);
+			
 			op.setOperationId(method.getName()+"-"+methodType);
 			String[] consumes = (String[]) getAnnotationAttribute(matchedRequestMapping, "consumes");
 			String[] produces = (String[]) getAnnotationAttribute(matchedRequestMapping, "produces");
-			op.setConsumes((consumes==null||consumes.length==0)?buildList("application/json"):buildList(consumes));
-			op.setProduces((produces==null||produces.length==0)?buildList("*/*"):buildList(produces));
-			
-			
+			//op.setConsumes((consumes==null||consumes.length==0)?buildList("application/json"):buildList(consumes));
+			//op.setProduces((produces==null||produces.length==0)?buildList("*/*"):buildList(produces));
+			op.setConsumes(buildList(consumes));
+			op.setProduces(buildList(produces));
 			Annotation[] methodAnnotations = method.getDeclaredAnnotations();
 			for (Annotation methodAnnotation : methodAnnotations) {
-				handleAnnotatedMethod(methodAnnotation, op, method);
+				handleAnnotatedMethod(methodAnnotation, op, method, simplifiedSwaggerData);
 			}
+			List<Map<String, List<String>>> security = op.getSecurity();
 			
+			if(security==null || security.size()==0)
+			{
+				
+				if(this.securityContexts!=null)
+				{
+					List<Map<String, List<String>>> opSecurity = new ArrayList<Map<String, List<String>>>();
+					for (SecurityContext securityContext : this.securityContexts) 
+					{
+						Predicate<String> selector =(Predicate<String>) extractObjectsField("selector", securityContext);
+						boolean apply = selector.apply(key);
+						if(apply)
+						{
+							
+							
+							Map<String, List<String>> map= new HashMap<String, List<String>>();
+							List<SecurityReference> securityReferences = securityContext.getSecurityReferences();
+							for (SecurityReference securityReference : securityReferences) 
+							{
+								List<String> scopesList= new ArrayList<String>();
+								String reference = securityReference.getReference();
+								List<AuthorizationScope> scopes = securityReference.getScopes();
+								for (AuthorizationScope scope : scopes) {
+									String scopeAsString = scope.getScope();
+									scopesList.add(scopeAsString);
+									
+								}
+								map.put(reference, scopesList);
+							}
+							opSecurity.add(map);
+						}
+						
+					}
+					op.setSecurity(opSecurity);
+				}
+			}
+			if(op.getConsumes()==null || op.getConsumes().size()==0)
+			{
+				if(Arrays.binarySearch(NOBODYMETHODTYPES, methodType)<0)
+				{
+					op.setConsumes(buildList("application/json"));
+				}
+				
+			}
+			if(op.getProduces()==null || op.getProduces().size()==0)
+			{
+				
+				op.setProduces(buildList("*/*"));
+			}
+			boolean preferQueryToFormParameter=operationTrackerData.preferQueryToFormParameter();
 			java.lang.reflect.Parameter[] parameters = method.getParameters();
 			
 			Type[] genericParameterTypes = method.getGenericParameterTypes();
@@ -807,84 +1611,157 @@ private List<String> buildList(String... args)
 				java.lang.reflect.Parameter parameter=parameters[i];
 				Type genericParameterType = genericParameterTypes[i];
 				
-			
-				Parameter param = buildOpParameter(parameter, genericParameterType);
-				Annotation[] declaredAnnotations = parameter.getDeclaredAnnotations();
-				for (Annotation declaredAnnotation : declaredAnnotations) {
-					handleAnnotatedParameter( declaredAnnotation,
-							param, parameter);
-				}
-				opParams.add(param);
-				/*
-				 * For now because we are using only vendor extensions this will work.
-				 * Will improvise later when we stop using vendor extensions
-				 */
 				
-				String existingParameterDescription = param.getDescription();
-				existingParameterDescription=existingParameterDescription!=null?existingParameterDescription:param.getName();
-				Map<String, Object> vendorExtensions = param.getVendorExtensions();
-				StringBuilder sb= new StringBuilder();
-				sb.append(existingParameterDescription);
-				addDescriptionUsingVendorExtensions( vendorExtensions, sb);
-				//sb.append("</h6>");
-				//sb.append("</table>");
-				param.setDescription(sb.toString());
+				Parameter param = buildOpParameter(parameter, genericParameterType, definitions, preferQueryToFormParameter, simplifiedSwaggerData.getNewModelCreator());
+				if(param==null)
+				{
+					//then paramter is not a basic type
+					//lets get paramter array
+					//annotations must be handled from within buildOpParameters
+					//using the properties
+					
+					//List<Parameter> params = buildOpParameters(parameter, genericParameterType);
+					//opParams.addAll(params);
+					//lets instead defer the above resolution
+					//treat temprarily like a body paramter
+					//will change it later
+					ParameterContainer parameterContainer = new ParameterContainer();
+					ModelOrRefBuilder bodyParameterBuilder= new ModelOrRefBuilder(genericParameterType, parameterContainer, simplifiedSwaggerData.getNewModelCreator());
+					OuterContainer built = bodyParameterBuilder.build();
+					BodyParameter bodyParameter = parameterContainer.getBodyParameter();
+					bodyParameter.setRequired(true);
+					bodyParameter.setName(parameter.getName());
+					bodyParameter.getVendorExtensions().put("toresolve", true);
+					param=bodyParameter;
+					final RefModel schema = (RefModel) bodyParameter.getSchema();
+					final Model found = definitions.get(schema.getSimpleRef());
+					if(found==null)//this can happen if the actual object is not needed after converting to parameters
+					{
+						//TODO add a removal logic later
+						simplifiedSwaggerData.getNewModelCreator().addIfParemeterizedType(genericParameterType, false);
+					}
+					opParams.add(bodyParameter);
+				}
+					
+				else
+				{
+					Annotation[] declaredAnnotations = parameter.getDeclaredAnnotations();
+					for (Annotation declaredAnnotation : declaredAnnotations) {
+						handleAnnotatedParameter( declaredAnnotation,
+								param, parameter, simplifiedSwaggerData);
+					}
+					opParams.add(param);
+				}
+				
+				
 			}
 			op.setParameters(opParams);
 			Class<?> returnType = method.getReturnType();
 			Type genericReturnType = method.getGenericReturnType();
-			Map<String, Response> responses= new LinkedHashMap<>();
-			if(returnType==void.class)
+			Map<String, Response> responses = op.getResponses();
+			boolean responsesExist=false;
+			if(responses==null)
 			{
-				addResponse(responses, HttpStatus.OK);
-
+				responses= new LinkedHashMap<>();
 			}
 			else
 			{
-				addRefResponse(responses, HttpStatus.OK, returnType, genericReturnType);
+				if(responses.size()>0)
+				{
+					responsesExist=true;
+				}
 			}
 			
-			addResponse(responses, HttpStatus.CREATED);
-			addResponse(responses, HttpStatus.UNAUTHORIZED);
-			addResponse(responses, HttpStatus.FORBIDDEN);
-			addResponse(responses, HttpStatus.NOT_FOUND);
+			
+			if(!responsesExist)
+			{
+				if(returnType==void.class)
+				{
+					addResponse(responses, HttpStatus.OK);
+
+				}
+				else
+				{
+					addRefResponse(responses, HttpStatus.OK, returnType, genericReturnType, simplifiedSwaggerData.getNewModelCreator());
+				}
+				if(applyDefaultResponseMessages)
+				{
+				addResponse(responses, HttpStatus.CREATED);
+				addResponse(responses, HttpStatus.UNAUTHORIZED);
+				addResponse(responses, HttpStatus.FORBIDDEN);
+				addResponse(responses, HttpStatus.NOT_FOUND);
+				}
+				else
+				{
+					if(customGlobalResponseMessages!=null)
+					{
+						RequestMethod methodTypeRequestMethod=RequestMethod.valueOf(methodType.toUpperCase());
+						List<ResponseMessage> responseMessages = customGlobalResponseMessages.get(methodTypeRequestMethod);
+						if(responseMessages!=null)
+						{
+							for (ResponseMessage responseMessage : responseMessages) {
+								int httpStatusCode = responseMessage.getCode();
+								String message = responseMessage.getMessage();
+								ModelReference responseModel = responseMessage.getResponseModel();
+								if(responseModel==null)
+								{
+									addResponse( responses, httpStatusCode, message);
+								}
+								else
+								{
+									addRefResponse( responses, httpStatusCode, message, responseModel, simplifiedSwaggerData.getNewModelCreator());
+									
+								}
+							}
+						}
+						
+					}
+				}
+			}
+			
 			
 			op.setResponses(responses);
-			
-			
+			Boolean hidden=(Boolean) op.getVendorExtensions().get("hidden");
+			if(hidden!=null && hidden.booleanValue())
+			{
+				operationTrackerData.setHiddenOperation(true);
+			}
+			else
+			{
+				path.set(methodType, op);
+			}
 			
 			
 		}
 		
 		
+		
+		
 	}
 
 
-	private void addDescriptionUsingVendorExtensions(
-			Map<String, Object> vendorExtensions, StringBuilder sb) {
-		
-		
-		Set<String> vendorExtensionKeySet = vendorExtensions.keySet();
-		sb.append("                              ");
-		sb.append("                              ");
-		sb.append("                              ");
-		//<h5>more description</h5>");
-		//sb.append("<table><tr><td><h6>more description</h6></td></tr>");
-		//sb.append("<h6>");
-		sb.append("<p><span style='color: green; font-size: 10pt'>");
-		for (String  vendorExtensionKey : vendorExtensionKeySet) {
-			Object object = vendorExtensions.get(vendorExtensionKey);
-			//sb.append("<tr><td><h6>");
-			
-			sb.append(vendorExtensionKey);
-			sb.append(":");
-			sb.append(object.toString());
-			sb.append(", ");
-			//sb.append("</h6></td></tr>");
-			
+
+
+
+	private boolean applyDefaultResponseMessages(){
+		boolean ret=true;
+		if(docket!=null)
+		{
+			try {
+				Field field = docket.getClass().getDeclaredField("applyDefaultResponseMessages");
+				field.setAccessible(true);
+				ret = field.getBoolean(docket);
+				field.setAccessible(false);
+			} catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
+				throw new SimplifiedSwaggerException("could not introspect docket", e);
+			}
 		}
-		sb.append("</span></p>");
+		return ret;
+		
 	}
+
+
+	
 
 	private void addResponse(Map<String, Response> responses, HttpStatus httpStatus) {
 		Response response= new Response();
@@ -892,10 +1769,43 @@ private List<String> buildList(String... args)
 		
 		responses.put(String.valueOf(httpStatus.value()), response);
 	}
+	
+	private void addRefResponse(Map<String, Response> responses, int  httpStatusCode, String message, ModelReference modelReference,
+			 NewModelCreator newModelCreator) {
+		ResponseContainer responseContainer = new ResponseContainer();
+		ModelOrRefBuilder bodyParameterBuilder;
+		try {
+			bodyParameterBuilder = new ModelOrRefBuilder(Class.forName(modelReference.getType()), responseContainer, newModelCreator);
+			OuterContainer built = bodyParameterBuilder.build();
+			Response response=responseContainer.getResponse();
+			if(message==null)
+			{
+				HttpStatus httpStatus=HttpStatus.resolve(httpStatusCode);
+				message=httpStatus!=null?httpStatus.name():String.valueOf(httpStatusCode);
+			}
+			response.setDescription(message);
+			responses.put(String.valueOf(httpStatusCode), response);
+		} catch (ClassNotFoundException e) {
+			throw new SimplifiedSwaggerException("Unable to load class of "+modelReference.getType(), e);
+		}
+		
+	}
+	
+	private void addResponse(Map<String, Response> responses, int httpStatusCode, String message) {
+		Response response= new Response();
+		if(message==null)
+		{
+			HttpStatus httpStatus=HttpStatus.resolve(httpStatusCode);
+			message=httpStatus!=null?httpStatus.name():String.valueOf(httpStatusCode);
+		}
+		response.setDescription(message);
+		
+		responses.put(String.valueOf(httpStatusCode), response);
+	}
 	//MAIN CHANGE
 	//this method will change
 	private void addRefResponse(Map<String, Response> responses, HttpStatus httpStatus, Class<?> returnType,
-			Type genericReturnType) {
+			Type genericReturnType, NewModelCreator newModelCreator) {
 		ResponseContainer responseContainer = new ResponseContainer();
 		ModelOrRefBuilder bodyParameterBuilder= new ModelOrRefBuilder(genericReturnType, responseContainer, newModelCreator);
 		OuterContainer built = bodyParameterBuilder.build();
@@ -910,13 +1820,49 @@ private List<String> buildList(String... args)
 	}
 
 
-
-	
-	
-
-
-	private Parameter buildOpParameter(java.lang.reflect.Parameter parameter,
+/*
+	private List<Parameter> buildOpParameters(java.lang.reflect.Parameter parameter,
 			Type genericParameterType) {
+	
+		List<Parameter> params= new ArrayList<>();
+				
+		MultiParameterContainer multiParameterContainer = new MultiParameterContainer();
+			ModelOrRefBuilder bodyParameterBuilder= new ModelOrRefBuilder(genericParameterType, multiParameterContainer, newModelCreator);
+			OuterContainer built = bodyParameterBuilder.build();
+			RefModel schema = (RefModel) multiParameterContainer.getSchema();
+			String simpleRef = schema.getSimpleRef();
+			Class modelClazz=null;
+			Type modelClazzType = getClassDefinition(simpleRef);
+			if(simpleRef.contains(ParameterizedComponentKeySymbols.LEFT))
+			{
+				if(modelClazzType instanceof ParameterizedType)
+				{
+				ParameterizedType ParameterizedType=(java.lang.reflect.ParameterizedType) modelClazzType;
+				modelClazz = (Class) ParameterizedType.getRawType();
+				}
+			}
+			else if(modelClazzType instanceof Class)
+			{
+				modelClazz=(Class) modelClazzType;
+			}
+			
+			//we dont want to go into what we consider basic types
+			//for all the basic types we should have a mapping
+			if(BasicMappingHolder.INSTANCE.getMappedByType(modelClazz.getName())==null)
+			{
+				Model model = definitions.get(simpleRef);
+			
+			}
+			
+	
+		return params;
+	}
+	
+
+*/
+	private Parameter buildOpParameter(java.lang.reflect.Parameter parameter,
+			Type genericParameterType, Map<String, Model> definitions, boolean preferQueryToFormParam,
+			NewModelCreator newModelCreator) {
 		Annotation[] annotations = parameter.getDeclaredAnnotations();
 		
 		
@@ -936,12 +1882,15 @@ private List<String> buildList(String... args)
 			BodyParameter bodyParameter = parameterContainer.getBodyParameter();
 			param=bodyParameter;
 			
+		
+			
 			
 		}
 		else if(findAnnotations(parameter, RequestParam.class))
 		{
+			param = this.parameterResolver.buildQueryOrFormParameter(preferQueryToFormParam);
 			
-			param= new QueryParameter();
+			
 		}
 		else if(findAnnotations(parameter, RequestHeader.class))
 		{
@@ -955,21 +1904,98 @@ private List<String> buildList(String... args)
 		{
 			param= new FormParameter();
 		}
-		
-		param.setName(parameter.getName());
-		
-		if(param instanceof SerializableParameter)
+		else
 		{
-			SerializableParameter sparam=(SerializableParameter) param;
-			//sparam.setType(parameter.getType().getName());
-			BasicMappingHolder.INSTANCE.setTypeAndFormat(sparam, parameter.getType());
+			//default should be QueryParameter if its basic
+			//else must introspect and build array of paramters
+			//here will only handle for basic
+			//can also handle for lsist, set and maybe array
+			//of basic types
+			boolean isBasic=false;
+			if(genericParameterType instanceof ParameterizedType)
+			{
+				ParameterizedType parameterizedType=(ParameterizedType) genericParameterType;
+				Type rawType = parameterizedType.getRawType();
+				if(rawType instanceof Class)
+				{
+					Class clazz=(Class) rawType;
+					if(List.class.isAssignableFrom(clazz)||Set.class.isAssignableFrom(clazz))
+					{
+						Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
+						if(actualTypeArguments.length==1)
+						{
+							Type actualTypeArgument=actualTypeArguments[0];
+							if(actualTypeArgument instanceof Class)
+							{
+								Class actualTypeArgumentAsClass=(Class) actualTypeArgument; 
+								String mappedType = BasicMappingHolder.INSTANCE.getMappedByType(actualTypeArgumentAsClass.getName());
+								if(mappedType!=null)
+								{
+									isBasic=true;
+								}
+							}
+						}
+					}
+				}
+			}
+			if(!isBasic)
+			{
+				Class clazz=parameter.getType();
+				if(clazz.isArray())
+				{
+					Class componentType = clazz.getComponentType();
+					String mappedType = BasicMappingHolder.INSTANCE.getMappedByType(componentType.getName());
+					if(mappedType!=null)
+					{
+						isBasic=true;
+					}
+				}
+				else
+				{
+					//ignore
+					//must be a complext type without the annoations
+					//we are checking for earlier
+				}
+			}
+			if(!isBasic)
+			{
+				String mappedType = BasicMappingHolder.INSTANCE.getMappedByType(parameter.getType().getName());
+				if(mappedType!=null)
+				{
+					isBasic=true;
+				}
+			}
+			if(isBasic)
+			{
+				param = this.parameterResolver.buildQueryOrFormParameter(preferQueryToFormParam);
+			}
 			
 		}
+		
+		if(param!=null)
+		{
+			param.setName(parameter.getName());
+			
+			if(param instanceof SerializableParameter)
+			{
+				SerializableParameter sparam=(SerializableParameter) param;
+				//sparam.setType(parameter.getType().getName());
+				BasicMappingHolder.INSTANCE.setTypeAndFormat(sparam, parameter.getType());
+				
+			}
+		}
+		
 		
 		
 		
 		return param;
 	}
+
+
+
+
+
+	
 
 
 
@@ -1029,9 +2055,51 @@ private List<String> buildList(String... args)
 		return methodTypes;
 	}
 
-private String[] constrollersToIgnore= {"org.springframework.boot.autoconfigure.web.servlet.error.BasicErrorController",
-		springfox.documentation.swagger.web.ApiResourceController.class.getName()};
 
+	private void introspectConrollerAdvices(NewModelCreator newModelCreator)
+	{
+		Map<String, Object> controllerAdvices = listableBeanFactory.getBeansWithAnnotation(ControllerAdvice.class);
+		Set<String> keySet = controllerAdvices.keySet();
+		for (String key : keySet) 
+		{
+			
+			if(key.equals("repositoryRestExceptionHandler"))
+			{
+				continue;
+			}
+			Object controllerAdvice = controllerAdvices.get(key);
+			Class controllerAdviceClass=null;
+			if(ClassUtils.isCglibProxy(controllerAdvice))
+			{
+				controllerAdviceClass=ClassUtils.getUserClass(controllerAdvice);
+			}
+			else
+			{
+				controllerAdviceClass=controllerAdvice.getClass();
+			}
+			
+			Method[] declaredMethods = controllerAdviceClass.getDeclaredMethods();
+			
+			for (Method declaredMethod : declaredMethods) 
+			{
+				if(declaredMethod.isAnnotationPresent(ExceptionHandler.class))
+				{
+					Class<?> returnType = declaredMethod.getReturnType();
+					Type genericReturnType = declaredMethod.getGenericReturnType();
+					if(returnType!=void.class ||returnType!=Void.class)
+					{
+						ResponseContainer responseContainer = new ResponseContainer();
+						ModelOrRefBuilder bodyParameterBuilder= new ModelOrRefBuilder(genericReturnType, responseContainer, newModelCreator);
+						OuterContainer built = bodyParameterBuilder.build();
+						//we only want the response model registered
+						
+						
+					}
+				}
+							
+			}
+		}
+	}
 	private Map<String, List<MethodAndTag>> buildPathToMethodAndTagMap(List<Tag> tags) {
 		
 		
@@ -1185,7 +2253,10 @@ private String[] constrollersToIgnore= {"org.springframework.boot.autoconfigure.
 
 
 
-	private Set<Class> unMappedAnnotations = new HashSet<>();
+	
+
+
+	
 
 	//private Properties propertyTypeMappingProps;
 	
@@ -1204,57 +2275,90 @@ private String[] constrollersToIgnore= {"org.springframework.boot.autoconfigure.
 	
 }
 	
-	private void handleAnnotatedProperty(Property property, Annotation annotation, Class propertyType) 
+	private void handleAnnotatedProperty(Property property, Annotation annotation, Class propertyType, SimplifiedSwaggerData simplifiedSwaggerData) 
 	{
-		String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
-		if (context.containsBean(beanName)) 
-		{
-			ISwaggerDecorator bean = context.getBean(beanName, ISwaggerDecorator.class);
-			bean.decorateProperty(property, annotation, propertyType);
-		} else {
-			unMappedAnnotations.add(annotation.annotationType());
 
+		if(!annotation.annotationType().getPackage().getName().equals(SwaggerDecoratorConstants.SWAGGER_ANNOTATION_PACKAGE))
+		{
+			String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
+			if (context.containsBean(beanName)) 
+			{
+				ISwaggerDecorator bean = context.getBean(beanName, ISwaggerDecorator.class);
+				bean.decorateProperty(property, annotation, propertyType);
+			} else {
+				simplifiedSwaggerData.getUnMappedAnnotations().add(annotation.annotationType());
+	
+			}
 		}
 
 	}
 	
-	private void handleAnnotatedParameter(
-			Annotation annotation, Parameter matchedOperationParameter,
-			java.lang.reflect.Parameter methodParameter) {
-		String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
-		if (context.containsBean(beanName)) 
+	private void handleAnnotatedApiProperty(Property property, Annotation annotation, Class propertyType, SimplifiedSwaggerData simplifiedSwaggerData) {
+		if((!(annotation instanceof ApiParam))  && annotation.annotationType().getPackage().getName().equals(SwaggerDecoratorConstants.SWAGGER_ANNOTATION_PACKAGE))
 		{
-			ISwaggerDecorator bean = context.getBean(beanName, ISwaggerDecorator.class);
-			bean.decorateParameter(matchedOperationParameter, annotation, methodParameter);
-		} else {
-			unMappedAnnotations.add(annotation.annotationType());
-
+			String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
+			if (context.containsBean(beanName)) 
+			{
+				ISwaggerDecorator bean = context.getBean(beanName, ISwaggerDecorator.class);
+				bean.decorateProperty(property, annotation, propertyType);
+			} else {
+				simplifiedSwaggerData.getUnMappedAnnotations().add(annotation.annotationType());
+	
+			}
+		}
+		
+	}
+	
+	private void handleAnnotatedParameter(
+	
+			Annotation annotation, Parameter matchedOperationParameter,
+			java.lang.reflect.Parameter methodParameter, SimplifiedSwaggerData simplifiedSwaggerData) {
+		
+		if(!(annotation instanceof ApiParam))
+		{
+			String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
+			if (context.containsBean(beanName)) 
+			{
+				ISwaggerDecorator bean = context.getBean(beanName, ISwaggerDecorator.class);
+				bean.decorateParameter(matchedOperationParameter, annotation, methodParameter);
+			} else {
+				simplifiedSwaggerData.getUnMappedAnnotations().add(annotation.annotationType());
+	
+			}
 		}
 	}
 	
 	private void handleAnnotatedMethod(
 			Annotation annotation, Operation operation,
-			Method method) {
+			Method method, SimplifiedSwaggerData simplifiedSwaggerData) {
+		
+		//for methods lets handle both swagger and validation annotations togather
 		String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
 		if (context.containsBean(beanName)) 
 		{
 			ISwaggerDecorator bean = context.getBean(beanName, ISwaggerDecorator.class);
-			bean.decorateOperation(operation, annotation, method);
+			
+			bean.decorateOperation(operation, annotation, method, simplifiedSwaggerData.getNewModelCreator());
 		} else {
-			unMappedAnnotations.add(annotation.annotationType());
+			simplifiedSwaggerData.getUnMappedAnnotations().add(annotation.annotationType());
 
 		}
+		
+		
 	}
 	
-	private void handleAnnotatedModel(Model model, Annotation annotation, Class modelClazz) {
-		String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
-		if (context.containsBean(beanName)) 
+	private void handleAnnotatedModel(Model model, Annotation annotation, Class modelClazz,SimplifiedSwaggerData simplifiedSwaggerData) {
+		if(!annotation.annotationType().getPackage().getName().equals(SwaggerDecoratorConstants.SWAGGER_ANNOTATION_PACKAGE))
 		{
-			ISwaggerDecorator bean = context.getBean(beanName, ISwaggerDecorator.class);
-			bean.decorateModel(model, annotation, modelClazz);
-		} else {
-			unMappedAnnotations.add(annotation.annotationType());
-
+			String beanName = annotation.annotationType().getName() + SwaggerDecoratorConstants.DECORATOR_SUFFIX;
+			if (context.containsBean(beanName)) 
+			{
+				ISwaggerDecorator bean = context.getBean(beanName, ISwaggerDecorator.class);
+				bean.decorateModel(model, annotation, modelClazz);
+			} else {
+				simplifiedSwaggerData.getUnMappedAnnotations().add(annotation.annotationType());
+	
+			}
 		}
 	}
 

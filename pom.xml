@@ -5,7 +5,7 @@
 
 	<groupId>org.bitbucket.tek-nik</groupId>
 
-	<version>1.0.2</version>
+	<version>1.0.3</version>
 	<artifactId>spring-swagger-simplified</artifactId>
 	<description>Enhances spring swagger capabilities</description>
 	<name>spring-swagger-simplified</name>
@@ -59,7 +59,13 @@
 			<scope>test</scope>
 		</dependency>
 
-
+		<!-- 
+		uncomment during development if it helps
+			<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-devtools</artifactId>
+			<optional>true</optional>
+		</dependency> -->
 
 	</dependencies>
 	<developers>

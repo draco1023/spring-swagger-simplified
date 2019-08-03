@@ -119,6 +119,7 @@ public class BasicMappingHolder {
 	}
 	
 	
+	
 	public void setTypeAndFormat(SerializableParameter serializableParameter, Class parameterType)
 	{
 		String paramType=getMappedByParamType(parameterType);

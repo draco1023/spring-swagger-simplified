@@ -4,6 +4,8 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.Map;
 
+import org.bitbucket.tek.nik.simplifiedswagger.newmodels.NewModelCreator;
+
 import io.swagger.models.Model;
 import io.swagger.models.Operation;
 import io.swagger.models.parameters.Parameter;
@@ -33,7 +35,7 @@ public class ValidSwaggerDecorator implements ISwaggerDecorator {
 	}
 
 	@Override
-	public void decorateOperation(Operation operation, Annotation annotation, Method method) {
+	public void decorateOperation(Operation operation, Annotation annotation, Method method, NewModelCreator newModelCreator) {
 		
 		
 	}

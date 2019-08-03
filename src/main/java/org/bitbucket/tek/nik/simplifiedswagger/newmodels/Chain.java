@@ -87,6 +87,7 @@ public class Chain {
 				{
 					chainControl.getNewModelCreator().addIfParemeterizedType(parameterizedType, false);
 				}
+				newProperty=refProperty;
 				
 			}
 		}

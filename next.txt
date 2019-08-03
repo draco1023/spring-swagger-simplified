@@ -1,0 +1,5 @@
+Look for //RRR
+We must avoid the this.fields in ... and make them local using a wrapper
+We must start using this new swagger config in a application that demonstrates a custom response mechanism using global exception handling
+At that point remove the extra code in simplified-swagger-examples\core-demo\src\main\java\hello\SwaggerConfig.java
+Other examples of ModelRef must be understood

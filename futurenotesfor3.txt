@@ -5,6 +5,9 @@ https://github.com/swagger-api/swagger-ui
 https://github.com/webjars/swagger-ui
 https://github.com/springfox/springfox/issues/983
 
+https://github.com/swagger-api/swagger-core/wiki/annotations
+https://github.com/OAI/OpenAPI-Specification/tree/master/versions
+
 housekeeping notes:
 ### Housekeeping Notes ###
 

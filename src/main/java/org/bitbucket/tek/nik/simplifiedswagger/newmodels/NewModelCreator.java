@@ -1,7 +1,9 @@
 package org.bitbucket.tek.nik.simplifiedswagger.newmodels;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
@@ -33,6 +35,7 @@ public class NewModelCreator {
 			lastCounter=counter;
 			//System.out.println("loop "+i);
 			this.addGenericModels(definitions);
+			
 			this.addWildCardModels(definitions);
 			this.addNonGenericModels(definitions);
 		}
@@ -40,6 +43,7 @@ public class NewModelCreator {
 	
 	private final Map<String, Model> definitions;
 	private final ParameterizedPropertyHandler parameterizedPropertyHandler;
+	private final GenericArrayPropertyHandler genericArrayPropertyHandler;
 	private final NonParameterizedPropertyHandler nonParameterizedPropertyHandler ;
 	
 	public NewModelCreator(Map<String, Model> definitions) {
@@ -48,6 +52,7 @@ public class NewModelCreator {
 		
 		this.parameterizedPropertyHandler = new ParameterizedPropertyHandler(definitions, this);
 		this.nonParameterizedPropertyHandler = new NonParameterizedPropertyHandler(definitions,  this);
+		this.genericArrayPropertyHandler= new GenericArrayPropertyHandler(definitions, this);
 	}
 
 	private int counter=0;
@@ -73,6 +78,7 @@ public class NewModelCreator {
 	}
 	
 	public void addIfParemeterizedType(Type genericType, boolean first) {
+		
 		if(genericType instanceof ParameterizedType)
 		{
 			/**
@@ -85,7 +91,11 @@ public class NewModelCreator {
 				prevent((Class) rawType, first);
 			}
 			
-			
+			//if any of the parameterizedType.getActualTypeArguments() is a Typevariable
+			//must refer fieldToParentGraphTillRoot
+			//resolve accordingly
+			//must add in another set not here
+			//RRR look here
 			if(parameterizedTypes.add((ParameterizedType)genericType))
 			{
 				counter++;
@@ -251,7 +261,7 @@ private void addNonGenericModels(Map<String, Model> definitions) {
 			if(declaredMethod.getParameterTypes().length==0 && declaredMethod.getReturnType()!=void.class)
 			{
 				String declaredMethodName = declaredMethod.getName();
-				if(declaredMethodName.startsWith("get") && declaredMethodName.length()>"get".length())
+				if(declaredMethodName.startsWith("get") && declaredMethodName.length()>"get".length()  && (!Modifier.isStatic(declaredMethod.getModifiers())))
 				{
 					char[] charArray = declaredMethodName.substring("get".length()).toCharArray();
 					charArray[0]=Character.toLowerCase(charArray[0]);
@@ -280,7 +290,7 @@ private void addNonGenericModels(Map<String, Model> definitions) {
 						propertiesMap.put(String.valueOf(charArray),declaredMethod.getReturnType());
 					}*/
 				}
-				else if(declaredMethodName.startsWith("is") && declaredMethodName.length()>"is".length())
+				else if(declaredMethodName.startsWith("is") && declaredMethodName.length()>"is".length() && (!Modifier.isStatic(declaredMethod.getModifiers())))
 				{
 					char[] charArray = declaredMethodName.substring("is".length()).toCharArray();
 					charArray[0]=Character.toLowerCase(charArray[0]);
@@ -308,7 +318,7 @@ private void addNonGenericModels(Map<String, Model> definitions) {
 		
 		Field[] declaredFields = clazz.getDeclaredFields();
 		for (Field field : declaredFields) {
-			if(field.getName().equals("class")||field.getName().equals("type"))
+			if(field.getName().equals("class")||field.getName().equals("type")||Modifier.isStatic(field.getModifiers()))
 			{
 				continue;
 			}
@@ -320,6 +330,10 @@ private void addNonGenericModels(Map<String, Model> definitions) {
 					propertiesMap.put(field.getName(),field.getType());
 				}
 				else if(genericType instanceof ParameterizedType)
+				 {
+					 propertiesMap.put(field.getName(),genericType);
+				 }
+				else if(genericType instanceof GenericArrayType)
 				 {
 					 propertiesMap.put(field.getName(),genericType);
 				 }
@@ -343,6 +357,10 @@ private void addNonGenericModels(Map<String, Model> definitions) {
 			if(type instanceof ParameterizedType)
 			{
 				handleParameterizedProperty(definitions, modelProperties, key2, (ParameterizedType)type, null);
+			}
+			else if(type instanceof GenericArrayType)
+			{
+				handleGenericArrayProperty(definitions, modelProperties, key2, (GenericArrayType)type, null);
 			}
 			else if(type instanceof WildcardType)
 			{
@@ -424,6 +442,15 @@ private void handleParameterizedProperty(Map<String, Model> definitions, HashMap
 			typeVariableToActualTypeMapFromParentClass);
 
 }
+private void handleGenericArrayProperty(Map<String, Model> definitions, HashMap<String, Property> modelProperties,
+		String propertyName, GenericArrayType type, Map<String, Type> typeVariableToActualTypeMapFromParentClass ) {
+	
+	genericArrayPropertyHandler.handleGenericArrayProperty(modelProperties, propertyName, type,
+			typeVariableToActualTypeMapFromParentClass);
+
+}
+
+
 /*
  * unused code will remove later.
  * commenting out for now
@@ -492,7 +519,7 @@ private void addGenericModels(Map<String, Model> definitions) {
 		
 		Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
 		for (Type type2 : actualTypeArguments) {
-			//registerTheTypeIfNeeded(type2);
+			
 			
 		}
 		if(rawType instanceof Class)
@@ -514,7 +541,7 @@ private void addGenericModels(Map<String, Model> definitions) {
 				if(declaredMethod.getParameterTypes().length==0 && declaredMethod.getReturnType()!=void.class)
 				{
 					String declaredMethodName = declaredMethod.getName();
-					if(declaredMethodName.startsWith("get") && declaredMethodName.length()>"get".length())
+					if(declaredMethodName.startsWith("get") && declaredMethodName.length()>"get".length()  && (!Modifier.isStatic(declaredMethod.getModifiers())))
 					{
 						char[] charArray = declaredMethodName.substring("get".length()).toCharArray();
 						charArray[0]=Character.toLowerCase(charArray[0]);
@@ -538,6 +565,10 @@ private void addGenericModels(Map<String, Model> definitions) {
 						{
 							propertiesMap.put(propName,genericReturnType);
 						}
+						else if(genericReturnType instanceof GenericArrayType)
+						{
+							propertiesMap.put(propName,genericReturnType);
+						}
 						
 						else
 						{
@@ -548,7 +579,8 @@ private void addGenericModels(Map<String, Model> definitions) {
 							propertiesMap.put(String.valueOf(charArray),declaredMethod.getReturnType());
 						}*/
 					}
-					else if(declaredMethodName.startsWith("is") && declaredMethodName.length()>"is".length())
+					else if(declaredMethodName.startsWith("is") && declaredMethodName.length()>"is".length() && (!Modifier.isStatic(declaredMethod.getModifiers())))
+					
 					{
 						char[] charArray = declaredMethodName.substring("is".length()).toCharArray();
 						charArray[0]=Character.toLowerCase(charArray[0]);
@@ -572,6 +604,10 @@ private void addGenericModels(Map<String, Model> definitions) {
 						{
 							propertiesMap.put(propName,genericReturnType);
 						}
+						else if(genericReturnType instanceof GenericArrayType)
+						{
+							propertiesMap.put(propName,genericReturnType);
+						}
 						else
 						{
 							throw new SimplifiedSwaggerException("handle "+genericReturnType.getClass().getName()+" method="+propName+", in "+key);
@@ -582,7 +618,7 @@ private void addGenericModels(Map<String, Model> definitions) {
 			
 			Field[] declaredFields = clazz.getDeclaredFields();
 			for (Field field : declaredFields) {
-				if(field.getName().equals("class")||field.getName().equals("type"))
+				if(field.getName().equals("class")||field.getName().equals("type")||Modifier.isStatic(field.getModifiers()))
 				{
 					continue;
 				}
@@ -615,10 +651,18 @@ private void addGenericModels(Map<String, Model> definitions) {
 				{
 					throw new SimplifiedSwaggerException("unexpected if for property "+key2+ " in generic model "+key+" was actual of null type");
 				}
+				if(type instanceof TypeVariable)
+				{
+					throw new SimplifiedSwaggerException("unexpected if for property "+key2+ " in generic model "+key+" was actual of TypeVariable type");
+					//TypeVariable tv=(TypeVariable) type;
+					//type = typeVariableToActualTypeMap.get(tv.getName());
+				}
 				if(type instanceof ParameterizedType)
 				{
 					ParameterizedType parameterizedType1=(ParameterizedType) type;
 					
+					parameterizedType1 = parametrizedTypeWithResolvedActualArguments(typeVariableToActualTypeMap,
+							parameterizedType1);
 					handleParameterizedProperty(definitions, modelProperties, key2, parameterizedType1, typeVariableToActualTypeMap);
 				}
 				else if(type instanceof WildcardType)
@@ -656,6 +700,32 @@ private void addGenericModels(Map<String, Model> definitions) {
 					handleNonParameterizedProperty(definitions, modelProperties, key2, (Class)type);
 					
 				}
+				else if(type instanceof GenericArrayType)
+				{
+					GenericArrayType genericArrayType=(GenericArrayType) type;
+					final Type genericComponentType = genericArrayType.getGenericComponentType();
+				
+					if(genericComponentType instanceof ParameterizedType)
+					{
+						ParameterizedType parameterizedType1=(ParameterizedType)genericComponentType;
+						ParameterizedType parametrizedTypeWithResolvedActualArguments = parametrizedTypeWithResolvedActualArguments(typeVariableToActualTypeMap,
+								parameterizedType1);
+						if(parameterizedType1 != parametrizedTypeWithResolvedActualArguments)
+						{
+							genericArrayType=sun.reflect.generics.reflectiveObjects.GenericArrayTypeImpl.make(parametrizedTypeWithResolvedActualArguments);
+						}
+					}
+					handleGenericArrayProperty(definitions, modelProperties, key2, genericArrayType, typeVariableToActualTypeMap);
+					
+					
+				}
+				/*else if(type instanceof TypeVariable)
+				{
+					handleTypevariableProperty(definitions, modelProperties, key2, (TypeVariable) type, typeVariableToActualTypeMap);
+					
+					
+				}*/
+				
 				else
 				{
 					throw new SimplifiedSwaggerException("unexpected else for property "+key2+ " in generic model "+key+" was actual of "+type.getClass().getName());
@@ -675,6 +745,49 @@ private void addGenericModels(Map<String, Model> definitions) {
 		definitions.put(originalKey, model);
 		
 	}
+}
+
+private ParameterizedType parametrizedTypeWithResolvedActualArguments(Map<String, Type> typeVariableToActualTypeMap,
+		ParameterizedType parameterizedType1) {
+	final Type[] actualTypeArguments2 = parameterizedType1.getActualTypeArguments();
+	boolean needMyImpl=false;
+	if(actualTypeArguments2!=null)
+	{
+		for (Type actualTypeArgument2: actualTypeArguments2) {
+			if(actualTypeArgument2 instanceof TypeVariable)
+			{
+				needMyImpl=true;
+				break;
+			}
+		}
+	}
+	
+	if(needMyImpl)
+	{
+		
+		Type[] newactualTypeArguments= new Type[actualTypeArguments2.length];
+		for (int i = 0; i < actualTypeArguments2.length; i++) 
+		{
+			Type actualTypeArgument2=actualTypeArguments2[i];
+			if(actualTypeArgument2 instanceof TypeVariable)
+			{
+				TypeVariable tv=(TypeVariable) actualTypeArgument2;
+				newactualTypeArguments[i]=typeVariableToActualTypeMap.get(tv.getName());
+			}
+			else
+			{
+				newactualTypeArguments[i]=actualTypeArguments2[i];
+			}
+			
+		}
+		
+		parameterizedType1=sun.reflect.generics.reflectiveObjects.ParameterizedTypeImpl.make((Class<?>) parameterizedType1.getRawType(), newactualTypeArguments, parameterizedType1.getOwnerType());
+			
+		
+		
+		
+	}
+	return parameterizedType1;
 }
 
 

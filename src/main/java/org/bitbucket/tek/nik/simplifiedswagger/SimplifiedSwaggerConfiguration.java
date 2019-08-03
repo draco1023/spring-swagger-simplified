@@ -1,6 +1,8 @@
 package org.bitbucket.tek.nik.simplifiedswagger;
 
+import org.bitbucket.tek.nik.simplifiedswagger.swaggerdecorators.ApiModelPropertySwaggerDecorator;
 import org.bitbucket.tek.nik.simplifiedswagger.swaggerdecorators.ApiOperationSwaggerDecorator;
+import org.bitbucket.tek.nik.simplifiedswagger.swaggerdecorators.ApiResponsesSwaggerDecorator;
 import org.bitbucket.tek.nik.simplifiedswagger.swaggerdecorators.CreditCardNumberSwaggerDecorator;
 import org.bitbucket.tek.nik.simplifiedswagger.swaggerdecorators.DateTimeFormatSwaggerDecorator;
 import org.bitbucket.tek.nik.simplifiedswagger.swaggerdecorators.EmailSwaggerDecorator;
@@ -112,6 +114,16 @@ public class SimplifiedSwaggerConfiguration {
 	@Bean("io.swagger.annotations.ApiOperation"+SwaggerDecoratorConstants.DECORATOR_SUFFIX)
 	ISwaggerDecorator apiOperationSwaggerDecorator() {
 		return new ApiOperationSwaggerDecorator();
+	}
+	
+	@Bean("io.swagger.annotations.ApiResponses"+SwaggerDecoratorConstants.DECORATOR_SUFFIX)
+	ISwaggerDecorator apiResponsesSwaggerDecorator() {
+		return new ApiResponsesSwaggerDecorator();
+	}
+	
+	@Bean("io.swagger.annotations.ApiModelProperty"+SwaggerDecoratorConstants.DECORATOR_SUFFIX)
+	ISwaggerDecorator apiModelPropertySwaggerDecorator() {
+		return new ApiModelPropertySwaggerDecorator();
 	}
 
 	
