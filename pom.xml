@@ -5,7 +5,7 @@
 
 	<groupId>org.bitbucket.tek-nik</groupId>
 
-	<version>1.0.3-SNAPSHOT</version>
+	<version>1.0.3</version>
 	<artifactId>spring-swagger-simplified</artifactId>
 	<description>Enhances spring swagger capabilities</description>
 	<name>spring-swagger-simplified</name>
