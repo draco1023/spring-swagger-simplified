@@ -65,10 +65,7 @@ causes this error.
 ![regular-swagger-extra-demo will cause this](images/problem.png "Regular swagger extra demo")
 In simplified-swagger-extra-demo you wont have this problem because it detects the controller advices and prepares the needed Model without extra effort.
 
-##### @Bean ApiInfo apiInfo()
-###### Using regular swagger  
-![regular-swagger-demo, regular-swagger-extra-demo, oauth-resource-server-with-swagger will cause this](images/apiInforegular.png "Regular swagger is unable to show apiInfo correctly")  
-See https://github.com/swagger-api/swagger-core/issues/2832
+
 ###### Using spring-swagger-simplified  
 Maven dependency spring-swagger-simplified[1.0.3] solves this apiInfo issue.
 ![simplified-swagger-demo will cause this](images/apiInfo1.png "Simplified swagger is able to show apiInfo correctly")
@@ -150,7 +147,7 @@ Try out hello\controllers\ExampleApiOperationController.java and hello\controlle
 * check using http://localhost:8085/spring-security-oauth-resource/swagger-ui.html  
 * run java -jar oauth-example/oauth-resource-server-with-swagger/target/oauth-resource-server-with-swagger.jar  
 * check using http://localhost:8086/spring-security-oauth-resource/swagger-ui.html  
-* Important Note: For bar_r_w you must provide barClientIdPassword as clientId. ClientId for the remaining prompts can be left at fooClientIdPassword. On the 
+* Important Note: For bar_r_w you must provide barClientIdPassword as clientId. ClientId for the remaining prompts can be left at fooClientIdPassword. For The user credentials use tom and 111. 
 * __Compare the two and hope you will find the oauth-resource-server-with-simplified-swagger useful__  
 
 

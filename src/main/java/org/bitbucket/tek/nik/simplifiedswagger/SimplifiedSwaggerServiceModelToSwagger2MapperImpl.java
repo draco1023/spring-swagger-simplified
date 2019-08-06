@@ -123,8 +123,7 @@ public class SimplifiedSwaggerServiceModelToSwagger2MapperImpl extends ServiceMo
 	@Autowired( )
 	Docket docket;
 	
-	@Autowired( required=false)
-	ApiInfo apiInfo;
+	
 	
 	private boolean applyDefaultResponseMessages;
 
@@ -179,7 +178,8 @@ private Object extractObjectsField(String fieldName, Object object) {
 			
 			Swagger swagger = super.mapDocumentation(from);
 			Info info = swagger.getInfo();
-			addApiInfo(info);
+			
+			
 			String basePath = swagger.getBasePath();
 			Map<String, Model> definitions = swagger.getDefinitions();
 			
@@ -244,81 +244,7 @@ private Object extractObjectsField(String fieldName, Object object) {
 	}
 
 
-	private void addApiInfo(Info info) {
-		if(apiInfo!=null)
-		{
-			if(apiInfo.getTitle()!=null && apiInfo.getTitle().length()>0)
-			{
-				info.setTitle(apiInfo.getTitle());
-			}
-			if(apiInfo.getDescription()!=null && apiInfo.getDescription().length()>0)
-			{
-				info.setDescription(apiInfo.getDescription());
-			}
-			License license = new License();
-			license.setName(null);
-			license.setUrl(null);
-			if(apiInfo.getLicense()!=null && apiInfo.getLicense().length()>0)
-			{
-				license.setName(apiInfo.getLicense());
-			}
-			if(apiInfo.getLicenseUrl()!=null && apiInfo.getLicenseUrl().length()>0)
-			{
-				license.setUrl(apiInfo.getLicenseUrl());
-			}
-			info.setLicense((license.getName()==null && license.getUrl()==null)?null:license);
-			if(apiInfo.getLicenseUrl()!=null && apiInfo.getLicenseUrl().length()>0)
-			{
-				info.setTermsOfService(apiInfo.getLicenseUrl());
-			}
-			else
-			{
-				info.setTermsOfService(null);
-			}
-			if(apiInfo.getVersion()!=null && apiInfo.getVersion().length()>0)
-			{
-				info.setVersion(apiInfo.getVersion());
-			}
-			else
-			{
-				info.setVersion(null);
-			}
-			if(apiInfo.getContact()!=null)
-			{
-				io.swagger.models.Contact contactForInfo = new io.swagger.models.Contact();
-				if(apiInfo.getContact().getName()!=null && apiInfo.getContact().getName().length()>0)
-				{
-					contactForInfo.setName(apiInfo.getContact().getName());
-				}
-				if(apiInfo.getContact().getEmail()!=null && apiInfo.getContact().getEmail().length()>0)
-				{
-					contactForInfo.setEmail(apiInfo.getContact().getEmail());
-				}
-				if(apiInfo.getContact().getUrl()!=null && apiInfo.getContact().getUrl().length()>0)
-				{
-					contactForInfo.setUrl(apiInfo.getContact().getUrl());
-				}
-				info.setContact((contactForInfo.getName()==null && contactForInfo.getUrl()==null && contactForInfo.getEmail()==null)?null:contactForInfo);
-				
-				
-			}
-			else
-			{
-				info.setContact(null);
-			}
-			
-		}
-		else
-		{
-			info.setLicense(null);
-			info.setTermsOfService(null);
-			info.setVersion(null);
-			info.setContact(null);
-		}
-	}
-
-
-	
+		
 
 
 	/**
