@@ -3,20 +3,14 @@ package org.bitbucket.tek.nik.simplifiedswagger.swaggerdecorators;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.function.Supplier;
 
 import org.bitbucket.tek.nik.simplifiedswagger.newmodels.NewModelCreator;
 
 import io.swagger.annotations.ApiModelProperty;
 import io.swagger.annotations.ApiModelProperty.AccessMode;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.Authorization;
-import io.swagger.annotations.AuthorizationScope;
 import io.swagger.annotations.Extension;
 import io.swagger.annotations.ExtensionProperty;
 import io.swagger.models.Model;

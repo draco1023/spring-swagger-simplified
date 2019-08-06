@@ -2,29 +2,16 @@ package org.bitbucket.tek.nik.simplifiedswagger.swaggerdecorators;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.function.Supplier;
 
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ModelOrRefBuilder;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.OuterContainer;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ResponseContainer;
 import org.bitbucket.tek.nik.simplifiedswagger.newmodels.NewModelCreator;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.RequestHeader;
 
-import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-import io.swagger.annotations.Authorization;
-import io.swagger.annotations.AuthorizationScope;
-import io.swagger.annotations.Extension;
-import io.swagger.annotations.ExtensionProperty;
-import io.swagger.annotations.ResponseHeader;
 import io.swagger.models.Model;
 import io.swagger.models.Operation;
 import io.swagger.models.Response;

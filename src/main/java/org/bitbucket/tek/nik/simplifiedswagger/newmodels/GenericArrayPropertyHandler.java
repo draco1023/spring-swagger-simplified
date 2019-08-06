@@ -1,21 +1,14 @@
 package org.bitbucket.tek.nik.simplifiedswagger.newmodels;
 
 import java.lang.reflect.GenericArrayType;
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
-
-import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ParameterizedComponentKeySymbols;
 
 import io.swagger.models.Model;
 import io.swagger.models.properties.ArrayProperty;
-import io.swagger.models.properties.MapProperty;
 import io.swagger.models.properties.Property;
-import io.swagger.models.properties.RefProperty;
 
 public class GenericArrayPropertyHandler {
 	

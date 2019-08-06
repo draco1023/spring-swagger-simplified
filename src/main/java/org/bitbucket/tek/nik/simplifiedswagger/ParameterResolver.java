@@ -11,7 +11,6 @@ import java.util.Set;
 import org.bitbucket.tek.nik.simplifiedswagger.exception.SimplifiedSwaggerException;
 import org.bitbucket.tek.nik.simplifiedswagger.modelbuilder.ParameterizedComponentKeySymbols;
 import org.bitbucket.tek.nik.simplifiedswagger.newmodels.NewModelCreator;
-import org.springframework.http.MediaType;
 
 import io.swagger.annotations.ApiParam;
 import io.swagger.models.Model;

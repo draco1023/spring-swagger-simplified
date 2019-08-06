@@ -2,7 +2,6 @@ package org.bitbucket.tek.nik.simplifiedswagger.optracker;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
-import java.util.List;
 
 import org.springframework.http.MediaType;
 
