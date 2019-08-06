@@ -65,13 +65,6 @@ causes this error.
 ![regular-swagger-extra-demo will cause this](images/problem.png "Regular swagger extra demo")
 In simplified-swagger-extra-demo you wont have this problem because it detects the controller advices and prepares the needed Model without extra effort.
 
-
-###### Using spring-swagger-simplified  
-Maven dependency spring-swagger-simplified[1.0.3] solves this apiInfo issue.
-![simplified-swagger-demo will cause this](images/apiInfo1.png "Simplified swagger is able to show apiInfo correctly")
-![simplified-swagger-extra-demo will cause this](images/apiInfo2.png "Simplified swagger is able to show apiInfo correctly")
-![oauth-resource-server-with-simplified-swagger will cause this](images/apiInfo3.png "Simplified swagger is able to show apiInfo correctly")
-
 ##### General Note on validations
 * The library only tries to ensure the annotations get used properly in the generated swagger specs. The actual validation is executed by the underlying framework that processes the annotations at runtime. That said there are adequate illustrative examples provided.
 
