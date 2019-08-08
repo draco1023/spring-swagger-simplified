@@ -14,6 +14,7 @@ import io.swagger.models.properties.BooleanProperty;
 import io.swagger.models.properties.DateProperty;
 import io.swagger.models.properties.DateTimeProperty;
 import io.swagger.models.properties.DoubleProperty;
+import io.swagger.models.properties.FileProperty;
 import io.swagger.models.properties.FloatProperty;
 import io.swagger.models.properties.IntegerProperty;
 import io.swagger.models.properties.LongProperty;
@@ -122,19 +123,42 @@ public class BasicMappingHolder {
 	
 	public void setTypeAndFormat(SerializableParameter serializableParameter, Class parameterType)
 	{
-		String paramType=getMappedByParamType(parameterType);
-		if(paramType==null)
+		if(parameterType.isArray())
 		{
-			throw new SimplifiedSwaggerException("need a mapping for "+parameterType.getName() +" in "+PARAM_TYPE_MAPPING_PROPERTIES_FILE_NAME);
+			String paramType=getMappedByParamType(parameterType.getComponentType());
+			if(paramType==null)
+			{
+				throw new SimplifiedSwaggerException("need a mapping for "+parameterType.getName() +" in "+PARAM_TYPE_MAPPING_PROPERTIES_FILE_NAME);
+			}
+			Property basicComponentTypeProperty = BasicMappingHolder.INSTANCE.buildBasicProperty(parameterType.getComponentType());
+			serializableParameter.setItems(basicComponentTypeProperty);
+			serializableParameter.setType("array");
+			//see https://swagger.io/docs/specification/data-models/data-types/
+			//should i convert all the types
+			String paramFormat=getMappedByParamFormat(parameterType.getComponentType());
+			if(paramFormat!=null)
+			{
+				serializableParameter.setFormat(paramFormat);
+			}
+			serializableParameter.setCollectionFormat("multi");
 		}
-		serializableParameter.setType(paramType);
-		//see https://swagger.io/docs/specification/data-models/data-types/
-		//should i convert all the types
-		String paramFormat=getMappedByParamFormat(parameterType);
-		if(paramFormat!=null)
+		else
 		{
-			serializableParameter.setFormat(paramFormat);
+			String paramType=getMappedByParamType(parameterType);
+			if(paramType==null)
+			{
+				throw new SimplifiedSwaggerException("need a mapping for "+parameterType.getName() +" in "+PARAM_TYPE_MAPPING_PROPERTIES_FILE_NAME);
+			}
+			serializableParameter.setType(paramType);
+			//see https://swagger.io/docs/specification/data-models/data-types/
+			//should i convert all the types
+			String paramFormat=getMappedByParamFormat(parameterType);
+			if(paramFormat!=null)
+			{
+				serializableParameter.setFormat(paramFormat);
+			}
 		}
+		
 	}
 	public  Property buildBasicProperty(  Class clazz) {
 		String mappedByType = getMappedByPropertyType(clazz);
@@ -196,6 +220,10 @@ public class BasicMappingHolder {
 		else if(mappedType.equals("int64"))
 		{
 			property= new LongProperty();
+		}
+		else if(mappedType.equals("file"))
+		{
+			property= new FileProperty();
 		}
 		else if(mappedType.equals("object"))
 		{
