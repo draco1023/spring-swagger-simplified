@@ -2153,6 +2153,10 @@ private static String[] sortArray(String[] input) {
 			string=base+string;
 			pathsSet.add(string);
 		}
+		if(valuesInAnnotation.length==0 && pathsInAnnotation.length==0)
+		{
+			pathsSet.add(base);
+		}
 	}
 
 
